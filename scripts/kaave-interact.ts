@@ -108,38 +108,38 @@ async function main() {
     console.log("\n")
   }
 
-  // await log_balances();
-  // await wbtc.connect(signer).approve(kaave.address, 2000000)
-  // await kaave.connect(signer).deposit(wbtc.address, 30000);
-  // console.log("Deposited into kaave\n");
-  // await kaave.connect(signer).borrow(usdc.address, 4500000, 1);
-  // console.log("Borrowed from kaave\n");
-  // await log_balances();
-  // await log_kaave_account_data();
-  // await kaave.connect(signer).underwrite(wbtc.address, 1000);
-  // console.log("Underwrote kaave position\n");
-  // await log_balances();
-  // await log_kaave_account_data();
-  // await switchPriceOracleForWbtc();
-  // await log_kaave_account_data();
-  // await usdc.connect(signer).approve(kaave.address, 1111111111);
-  // await kaave.connect(signer).preempt(wbtc.address, usdc.address, signer._address, 11111111, false);
-  // console.log("Preempted unhealthy position\n");
-  // await log_kaave_account_data();
-  // await log_balances();
-  
-  await wbtc.connect(signer).approve(LendingPool.address, 2000000);
-  await LendingPool.connect(signer).deposit(wbtc.address, 30000, signer._address, 0);
-  console.log("Deposited into aave\n");
-  await LendingPool.connect(signer).borrow(usdc.address, 4500000, 1, 0, signer._address);
-  console.log("Borrowed from aave\n");
-  await log_aave_account_data();
+  await log_balances();
+  await wbtc.connect(signer).approve(kaave.address, 2000000)
+  await kaave.connect(signer).deposit(wbtc.address, 30000);
+  console.log("Deposited into kaave\n");
+  await kaave.connect(signer).borrow(usdc.address, 4500000, 1);
+  console.log("Borrowed from kaave\n");
+  await log_balances();
+  await log_kaave_account_data();
+  await kaave.connect(signer).underwrite(wbtc.address, 1000);
+  console.log("Underwrote kaave position\n");
+  await log_balances();
+  await log_kaave_account_data();
   await switchPriceOracleForWbtc();
-  await log_aave_account_data();
+  await log_kaave_account_data();
+  await usdc.connect(signer).approve(kaave.address, 1111111111);
+  await kaave.connect(signer).preempt(wbtc.address, usdc.address, signer._address, 11111111, false);
+  console.log("Preempted unhealthy position\n");
+  await log_kaave_account_data();
   await log_balances();
-  await usdc.connect(signer).approve(LendingPool.address, 1111111111);
-  await LendingPool.connect(signer).liquidationCall(wbtc.address, usdc.address, signer._address, 11111111, false);
-  await log_balances();
+  
+  // await wbtc.connect(signer).approve(LendingPool.address, 2000000);
+  // await LendingPool.connect(signer).deposit(wbtc.address, 30000, signer._address, 0);
+  // console.log("Deposited into aave\n");
+  // await LendingPool.connect(signer).borrow(usdc.address, 4500000, 1, 0, signer._address);
+  // console.log("Borrowed from aave\n");
+  // await log_aave_account_data();
+  // await switchPriceOracleForWbtc();
+  // await log_aave_account_data();
+  // await log_balances();
+  // await usdc.connect(signer).approve(LendingPool.address, 1111111111);
+  // await LendingPool.connect(signer).liquidationCall(wbtc.address, usdc.address, signer._address, 11111111, false);
+  // await log_balances();
 
 }
 

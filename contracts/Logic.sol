@@ -105,6 +105,8 @@ library Logic {
         console.log('buffer asset unit price', vars.bufferAssetUnitPrice);
 
         if (vars.bufferAssetLiquidationThreshold != 0) {
+            // we will probably get extremely minor deviations from aave lendingpool health factor
+            // due to rounding errors in this calculation. will not address for this challenge.
             uint256 bufferBalanceETH =
                 vars.bufferAssetUnitPrice.mul(bufferAmount).div(vars.bufferAssetUnit);
             console.log('buffer balance', bufferBalanceETH);
