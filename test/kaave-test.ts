@@ -2,11 +2,9 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 import AaveOracleABI from "../abis/AaveOracle.json";
-import { assert } from "console";
 
 describe("Kaave", function() {
   const hre = require("hardhat");
-  let accounts: Signer[];
   let kaave: Contract, SettablePriceOracle: Contract, LendingPool: Contract, 
     LendingPoolAddressProvider: Contract, AaveOracle: Contract, 
     wbtc: Contract, awbtc: Contract, usdc: Contract, ausdc: Contract;
@@ -82,7 +80,12 @@ describe("Kaave", function() {
       to: strategistAddr,
       value: ethers.utils.parseEther("5.0")
     })
+    await wbtc.connect(borrower).approve(kaave.address, 2000000);
+    await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
+    await usdc.connect(strategist).approve(kaave.address, 1111111111);
+    await usdc.connect(strategist).approve(LendingPool.address, 1111111111);
 
+    // install settable price oracle for wbtc
     const wbtcPrice = await AaveOracle.getAssetPrice(wbtc.address);
     await SettablePriceOracle.setPrice(wbtcPrice);
     await AaveOracle.connect(aaveOracleOwner).setFallbackOracle(SettablePriceOracle.address);
@@ -102,13 +105,10 @@ describe("Kaave", function() {
   });
   
   it("Should match position health factor for identical positions on Aave without buffer", async function() {
-
-    await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
     const kaaveUserData = await kaave.connect(borrower).getUserAccountData(borrower.getAddress());
 
-    await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
     await LendingPool.connect(borrower).deposit(wbtc.address, 30000, borrower.getAddress(), 0);
     await LendingPool.connect(borrower).borrow(usdc.address, 4500000, 1, 0, borrower.getAddress());
     const aaveUserData = await LendingPool.connect(borrower).getUserAccountData(borrower.getAddress());
@@ -120,14 +120,11 @@ describe("Kaave", function() {
   });
 
   it("Should match position health factor for identical positions on Aave with buffer", async function() {
-
-    await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
-    await kaave.connect(borrower).underwrite(wbtc.address, 900); // probably not the borrower underwriting in practice
+    await kaave.connect(borrower).underwrite(wbtc.address, 900);
     const kaaveUserData = await kaave.connect(borrower).getUserAccountData(borrower.getAddress());
 
-    await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
     await LendingPool.connect(borrower).deposit(wbtc.address, 30000, borrower.getAddress(), 0);
     await LendingPool.connect(borrower).borrow(usdc.address, 4500000, 1, 0, borrower.getAddress());
     const aaveUserData = await LendingPool.connect(borrower).getUserAccountData(borrower.getAddress());
@@ -139,22 +136,15 @@ describe("Kaave", function() {
   });
 
   it ("Should not allow liquidations of healthy positions", async function() {
-    await usdc.connect(strategist).approve(kaave.address, 1111111111);
-    await usdc.connect(strategist).approve(LendingPool.address, 1111111111);
-
-    await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
-    await kaave.connect(borrower).underwrite(wbtc.address, 900);
-    await usdc.connect(borrower).approve(kaave.address, 1111111111);
+    await kaave.connect(strategist).underwrite(usdc.address, 10000000);
     await expect ( 
       kaave.connect(strategist).preempt(wbtc.address, usdc.address, strategist.getAddress(), 11111111, false)
     ).to.be.revertedWith("42");
 
-    await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
     await LendingPool.connect(borrower).deposit(wbtc.address, 30000, borrower.getAddress(), 0);
     await LendingPool.connect(borrower).borrow(usdc.address, 4500000, 1, 0, borrower.getAddress());
-    await usdc.connect(borrower).approve(LendingPool.address, 1111111111);
     await expect (
       LendingPool.connect(strategist).liquidationCall(wbtc.address, usdc.address, borrower.getAddress(), 11111111, false)
     ).to.be.revertedWith("42");
@@ -162,28 +152,27 @@ describe("Kaave", function() {
   });
 
   it ("Should allow liquidations of unhealthy positions", async function() {
-    await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
-    await kaave.connect(borrower).underwrite(wbtc.address, 900);
-    await usdc.connect(borrower).approve(kaave.address, 1111111111);
+    await kaave.connect(strategist).underwrite(usdc.address, 10000000);
 
-    await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
     await LendingPool.connect(borrower).deposit(wbtc.address, 30000, borrower.getAddress(), 0);
     await LendingPool.connect(borrower).borrow(usdc.address, 4500000, 1, 0, borrower.getAddress());
 
     const wbtcPrice = await SettablePriceOracle.getAssetPrice(wbtc.address);
     await SettablePriceOracle.setPrice(wbtcPrice.div(2));
 
-    await usdc.connect(strategist).approve(kaave.address, 1111111111);
-    await usdc.connect(strategist).approve(LendingPool.address, 1111111111);
+  
     var btcBalancePreKaaveLiquidation = await wbtc.balanceOf(strategist.getAddress());
     await kaave.connect(strategist).preempt(wbtc.address, usdc.address, strategist.getAddress(), 11111111, false);
     var btcBalanceAfterKaaveLiquidation = await wbtc.balanceOf(strategist.getAddress());
     await LendingPool.connect(strategist).liquidationCall(wbtc.address, usdc.address, borrower.getAddress(), 11111111, false);
     var btcBalanceAfterAaveLiquidation = await wbtc.balanceOf(strategist.getAddress());
+    
+    // check strategist's balance of collateral asset increases
     expect(btcBalanceAfterKaaveLiquidation.toNumber()).to.be.greaterThan(btcBalancePreKaaveLiquidation.toNumber());
     expect(btcBalanceAfterAaveLiquidation.toNumber()).to.be.greaterThan(btcBalanceAfterKaaveLiquidation.toNumber());
+    // check strategist received same amount of collateral in kaave and aave liquidation
     expect(
       btcBalanceAfterAaveLiquidation.toNumber() - btcBalanceAfterKaaveLiquidation.toNumber()
       ).to.equal(

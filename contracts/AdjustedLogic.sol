@@ -16,11 +16,11 @@ import "./IAToken.sol";
 
 
 /**
- * @title Logic library
+ * @title AdjustedLogic library
  * @author egg
- * @title Implements logic to calculate and validate the state of a user adjusted by the KCompound buffer
+ * @title Implements logic to calculate and validate the state of a user adjusted by the Kaave buffer
  */
-library Logic {
+library AdjustedLogic {
 
     using SafeMath for uint256;
     using WadRayMath for uint256;
@@ -34,18 +34,8 @@ library Logic {
     struct CalculateUserAccountDataVars {
         uint256 bufferAssetUnitPrice;
         uint256 bufferAssetUnit;
-        uint256 compoundedLiquidityBalance;
-        uint256 compoundedBorrowBalance;
         uint256 bufferAssetDecimals;
-        uint256 ltv;
         uint256 bufferAssetLiquidationThreshold;
-        uint256 i;
-        uint256 avgLtv;
-        uint256 reservesLength;
-        bool healthFactorBelowThreshold;
-        address currentReserveAddress;
-        bool usageAsCollateralEnabled;
-        bool userUsesReserveAsCollateral;
         uint256 unadjustedHealthFactor;
         uint256 unadjustedTotalCollateralETH;
         uint256 adjustedTotalCollateralETH;
@@ -87,6 +77,11 @@ library Logic {
         vars.bufferAssetUnit = 10**vars.bufferAssetDecimals;
         vars.bufferAssetUnitPrice = IPriceOracleGetter(addressProvider.getPriceOracle()).getAssetPrice(bufferAsset);
 
+        // adjust user account data by the kaave buffer
+        // retreving the account data from Aave LendingPool and subtracting buffer amounts as we do here
+        // seemed the cleanest way to do it at first. in retrospect, I may have chosen to do it differently
+        // knowing now that this way is vulnerable to rounding errors that could result in slight deviations
+        // from expected health factor
         if (vars.bufferAssetLiquidationThreshold != 0) {
             // we will probably get extremely minor deviations from aave lendingpool health factor
             // due to rounding errors in this calculation. will not address for this challenge.
@@ -96,6 +91,8 @@ library Logic {
             // what if buffer > user collateral?
             vars.adjustedTotalCollateralETH = vars.unadjustedTotalCollateralETH.sub(bufferBalanceETH);
 
+
+            // potential for rounding error here as well
             vars.adjustedAvgLiquidationThreshold = vars.unadjustedAvgLiquidationThreshold.mul(vars.unadjustedTotalCollateralETH)
                 .sub(bufferBalanceETH.mul(vars.bufferAssetLiquidationThreshold)).div(vars.adjustedTotalCollateralETH);
         }
@@ -117,7 +114,7 @@ library Logic {
     * @param liquidationThreshold The avg liquidation threshold
     * @return The health factor calculated from the balances provided
     **/
-    function calculateHealthFactorFromBalances(
+    function calculateHealthFactorFromBalances( // copied from Aave contracts
         uint256 totalCollateralInETH,
         uint256 totalDebtInETH,
         uint256 liquidationThreshold
@@ -136,7 +133,7 @@ library Logic {
     * @param userStableDebt Total stable debt balance of the user
     * @param userVariableDebt Total variable debt balance of the user
     **/
-    function validateLiquidationCall(
+    function validateLiquidationCall( // copied from Aave contracts
         DataTypes.ReserveData memory collateralReserve,
         DataTypes.ReserveData memory principalReserve,
         DataTypes.UserConfigurationMap memory userConfig,
@@ -205,7 +202,7 @@ library Logic {
         uint256 debtToCover
 
     ) internal view returns (uint256, uint256) {
-        // perform adjustments to account for buffer. do we need to?
+        // do we need to adjust these calculations by buffer size if buffer asset == collateral asset?
 
         CalculateLiquidationAmountsVariables memory vars;
 
@@ -267,7 +264,7 @@ library Logic {
    *                           (user balance, close factor)
    *         debtAmountNeeded: The amount to repay with the liquidation
    **/
-  function _calculateAvailableCollateralToLiquidate(
+  function _calculateAvailableCollateralToLiquidate( // copied from Aave contracts
     DataTypes.ReserveData memory collateralReserve,
     DataTypes.ReserveData memory debtReserve,
     address collateralAsset,

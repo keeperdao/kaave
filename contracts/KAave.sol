@@ -6,7 +6,7 @@ import "hardhat/console.sol";
 import "./Aave.sol";
 import "./open_zeppelin/SafeERC20.sol";
 import "./open_zeppelin/IERC20.sol";
-import "./Logic.sol";
+import "./AdjustedLogic.sol";
 import "./helpers/Helpers.sol";
 
 
@@ -93,14 +93,17 @@ contract KAAVE {
     ) external {
 
         // will assume the interest accrued on the buffer belongs to the user
+        
         // what if position including the buffer is unhealthy?
+        // check to prevent withdrawal of buffer?
+
 
         PreemptLocalVars memory vars;
         DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
         DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
         DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
         DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
-        (,,,vars.healthFactor) = Logic.calculateAdjustedAccountData(
+        (,,,vars.healthFactor) = AdjustedLogic.calculateAdjustedAccountData(
             address(lendingPoolAddressProvider), 
             address(this), 
             userConfig, 
@@ -112,7 +115,7 @@ contract KAAVE {
         
         (vars.userStableDebt, vars.userVariableDebt) = Helpers.getUserCurrentDebtMemory(address(this), debtReserve);
 
-        (vars.errorCode, vars.errorMsg) = Logic.validateLiquidationCall(
+        (vars.errorCode, vars.errorMsg) = AdjustedLogic.validateLiquidationCall(
             collateralReserve,
             debtReserve,
             userConfig,
@@ -123,7 +126,7 @@ contract KAAVE {
         require(vars.errorCode == 0, string(abi.encodePacked(vars.errorMsg)));
 
 
-        (vars.actualDebtToLiquidate, vars.maxCollateralToLiquidate) = Logic.calculateLiquidationAmounts(
+        (vars.actualDebtToLiquidate, vars.maxCollateralToLiquidate) = AdjustedLogic.calculateLiquidationAmounts(
                 collateralReserve,
                 debtReserve,
                 collateralAsset,
@@ -157,9 +160,6 @@ contract KAAVE {
             lendingPool.withdraw(collateralAsset, vars.maxCollateralToLiquidate, user);
         }
 
-
-        // check to prevent withdrawal of buffer?
-
     } 
 
         /**
@@ -187,7 +187,7 @@ contract KAAVE {
             totalDebtETH,
             currentLiquidationThreshold,
             healthFactor
-        ) = Logic.calculateAdjustedAccountData(
+        ) = AdjustedLogic.calculateAdjustedAccountData(
             address(lendingPoolAddressProvider), 
             address(this), 
             userConfig, 
