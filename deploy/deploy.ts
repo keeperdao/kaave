@@ -10,7 +10,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log('Deploying contracts')
 
   const kaaveContract = 'KAAVE'
-  const discountedPriceOracleContract = 'DiscountedPriceOracle'
+  const settablericeOracleContract = 'SettablePriceOracle'
   const { deployer } = await getNamedAccounts()
   console.log('Deployer address', deployer)
 
@@ -26,14 +26,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     )
   }
 
-  const oracleDeployResult = await deploy(discountedPriceOracleContract, {
+  const oracleDeployResult = await deploy(settablericeOracleContract, {
     from: deployer,
-    args: [kaaveDeployResult.receipt?.contractAddress],
+    args: [],
     log: true,
   })
   if (oracleDeployResult.newlyDeployed) {
     console.log(
-      `contract ${discountedPriceOracleContract} deployed at ${oracleDeployResult.receipt?.contractAddress} using ${oracleDeployResult.receipt?.gasUsed} gas`
+      `contract ${settablericeOracleContract} deployed at ${oracleDeployResult.receipt?.contractAddress} using ${oracleDeployResult.receipt?.gasUsed} gas`
     )
   }
 
