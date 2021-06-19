@@ -9,13 +9,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy } = deployments
   console.log('Deploying contract')
 
-  const contract = 'Greeter'
+  const contract = 'KAAVE'
   const { deployer } = await getNamedAccounts()
   console.log('Deployer address', deployer)
 
   const deployResult = await deploy(contract, {
     from: deployer,
-    args: ["Hello World!"], 
+    args: [], 
     log: true,
   })
 

@@ -43,17 +43,9 @@ const config: HardhatUserConfig = {
       },
       forking: {
         url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-        blockNumber: 12232000,
+        blockNumber: 12649577,
       },
     },
-    kovan: {
-      url: `https://eth-kovan.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.KOVAN_KEY as string],
-    }, 
-    ethereum: {
-      url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.MAINNET_KEY as string],
-    }
   },
   namedAccounts: {
     deployer: {
