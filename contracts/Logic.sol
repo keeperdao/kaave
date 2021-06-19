@@ -10,30 +10,10 @@ import {PercentageMath} from './math/PercentageMath.sol';
 import {ReserveConfiguration} from './configuration/ReserveConfiguration.sol';
 import {UserConfiguration} from './configuration/UserConfiguration.sol';
 import "./helpers/Errors.sol";
+import "./IAToken.sol";
 
 
-struct CalculateUserAccountDataVars {
-    uint256 bufferAssetUnitPrice;
-    uint256 bufferAssetUnit;
-    uint256 compoundedLiquidityBalance;
-    uint256 compoundedBorrowBalance;
-    uint256 bufferAssetDecimals;
-    uint256 ltv;
-    uint256 bufferAssetLiquidationThreshold;
-    uint256 i;
-    uint256 avgLtv;
-    uint256 reservesLength;
-    bool healthFactorBelowThreshold;
-    address currentReserveAddress;
-    bool usageAsCollateralEnabled;
-    bool userUsesReserveAsCollateral;
-    uint256 unadjustedHealthFactor;
-    uint256 unadjustedTotalCollateralETH;
-    uint256 adjustedTotalCollateralETH;
-    uint256 totalDebtETH;
-    uint256 unadjustedAvgLiquidationThreshold;
-    uint256 adjustedAvgLiquidationThreshold;
-  }
+
 
 /**
  * @title Logic library
@@ -48,7 +28,31 @@ library Logic {
     using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
     using UserConfiguration for DataTypes.UserConfigurationMap;
 
-    uint256 public constant HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1 ether;
+    uint256 internal constant HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1 ether;
+    uint256 internal constant LIQUIDATION_CLOSE_FACTOR_PERCENT = 5000;
+
+    struct CalculateUserAccountDataVars {
+        uint256 bufferAssetUnitPrice;
+        uint256 bufferAssetUnit;
+        uint256 compoundedLiquidityBalance;
+        uint256 compoundedBorrowBalance;
+        uint256 bufferAssetDecimals;
+        uint256 ltv;
+        uint256 bufferAssetLiquidationThreshold;
+        uint256 i;
+        uint256 avgLtv;
+        uint256 reservesLength;
+        bool healthFactorBelowThreshold;
+        address currentReserveAddress;
+        bool usageAsCollateralEnabled;
+        bool userUsesReserveAsCollateral;
+        uint256 unadjustedHealthFactor;
+        uint256 unadjustedTotalCollateralETH;
+        uint256 adjustedTotalCollateralETH;
+        uint256 totalDebtETH;
+        uint256 unadjustedAvgLiquidationThreshold;
+        uint256 adjustedAvgLiquidationThreshold;
+    }
 
     function calculateAdjustedHealthFactor(
         address lendingPoolAddressProvider,
@@ -181,5 +185,137 @@ library Logic {
 
         return (uint256(Errors.CollateralManagerErrors.NO_ERROR), Errors.LPCM_NO_ERRORS);
     }
+
+    struct CalculateLiquidationAmountsVariables {
+        uint256 userCollateralBalance;
+        uint256 maxLiquidatableDebt;
+        uint256 actualDebtToLiquidate;
+        uint256 maxCollateralToLiquidate;
+        uint256 debtAmountNeeded;
+        IAToken collateralAtoken;
+
+    }
+
+    function calculateLiquidationAmounts(
+        DataTypes.ReserveData memory collateralReserve,
+        DataTypes.ReserveData memory debtReserve,
+        address collateralAsset,
+        address debtAsset,
+        address user,
+        address lendingPoolAddressProvider,
+        uint256 userStableDebt,
+        uint256 userVariableDebt,
+        uint256 debtToCover
+
+    ) internal view returns (uint256, uint256) {
+        // perform adjustments to account for buffer. do we need to?
+
+        CalculateLiquidationAmountsVariables memory vars;
+
+        vars.collateralAtoken = IAToken(collateralReserve.aTokenAddress);
+
+        vars.userCollateralBalance = vars.collateralAtoken.balanceOf(user);
+
+        vars.maxLiquidatableDebt = userStableDebt.add(userVariableDebt).percentMul(
+            LIQUIDATION_CLOSE_FACTOR_PERCENT
+        );
+
+        vars.actualDebtToLiquidate = debtToCover > vars.maxLiquidatableDebt
+            ? vars.maxLiquidatableDebt
+            : debtToCover;
+
+        (vars.maxCollateralToLiquidate, vars.debtAmountNeeded) = _calculateAvailableCollateralToLiquidate(
+            collateralReserve,
+            debtReserve,
+            collateralAsset,
+            debtAsset,
+            lendingPoolAddressProvider,
+            vars.actualDebtToLiquidate,
+            vars.userCollateralBalance
+        );
+
+        // If debtAmountNeeded < actualDebtToLiquidate, there isn't enough
+        // collateral to cover the actual amount that is being liquidated, hence we liquidate
+        // a smaller amount
+
+        if (vars.debtAmountNeeded < vars.actualDebtToLiquidate) {
+            vars.actualDebtToLiquidate = vars.debtAmountNeeded;
+        }
+
+        return (vars.actualDebtToLiquidate, vars.maxCollateralToLiquidate);
+    }
+
+    struct AvailableCollateralToLiquidateLocalVars {
+        uint256 userCompoundedBorrowBalance;
+        uint256 liquidationBonus;
+        uint256 collateralPrice;
+        uint256 debtAssetPrice;
+        uint256 maxAmountCollateralToLiquidate;
+        uint256 debtAssetDecimals;
+        uint256 collateralDecimals;
+    }
+
+    /**
+   * @dev Calculates how much of a specific collateral can be liquidated, given
+   * a certain amount of debt asset.
+   * - This function needs to be called after all the checks to validate the liquidation have been performed,
+   *   otherwise it might fail.
+   * @param collateralReserve The data of the collateral reserve
+   * @param debtReserve The data of the debt reserve
+   * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
+   * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
+   * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
+   * @param userCollateralBalance The collateral balance for the specific `collateralAsset` of the user being liquidated
+   * @return collateralAmount: The maximum amount that is possible to liquidate given all the liquidation constraints
+   *                           (user balance, close factor)
+   *         debtAmountNeeded: The amount to repay with the liquidation
+   **/
+  function _calculateAvailableCollateralToLiquidate(
+    DataTypes.ReserveData memory collateralReserve,
+    DataTypes.ReserveData memory debtReserve,
+    address collateralAsset,
+    address debtAsset,
+    address lendingPoolAddressProvider,
+    uint256 debtToCover,
+    uint256 userCollateralBalance
+  ) internal view returns (uint256, uint256) {
+    uint256 collateralAmount = 0;
+    uint256 debtAmountNeeded = 0;
+    ILendingPoolAddressesProvider addressProvider = ILendingPoolAddressesProvider(lendingPoolAddressProvider);
+    IPriceOracleGetter oracle = IPriceOracleGetter(addressProvider.getPriceOracle());
+
+    AvailableCollateralToLiquidateLocalVars memory vars;
+
+    vars.collateralPrice = oracle.getAssetPrice(collateralAsset);
+    vars.debtAssetPrice = oracle.getAssetPrice(debtAsset);
+
+    (, , vars.liquidationBonus, vars.collateralDecimals, ) = collateralReserve
+      .configuration
+      .getParams();
+    vars.debtAssetDecimals = debtReserve.configuration.getDecimals();
+
+    // This is the maximum possible amount of the selected collateral that can be liquidated, given the
+    // max amount of liquidatable debt
+    vars.maxAmountCollateralToLiquidate = vars
+      .debtAssetPrice
+      .mul(debtToCover)
+      .mul(10**vars.collateralDecimals)
+      .percentMul(vars.liquidationBonus)
+      .div(vars.collateralPrice.mul(10**vars.debtAssetDecimals));
+
+    if (vars.maxAmountCollateralToLiquidate > userCollateralBalance) {
+      collateralAmount = userCollateralBalance;
+      debtAmountNeeded = vars
+        .collateralPrice
+        .mul(collateralAmount)
+        .mul(10**vars.debtAssetDecimals)
+        .div(vars.debtAssetPrice.mul(10**vars.collateralDecimals))
+        .percentDiv(vars.liquidationBonus);
+    } else {
+      collateralAmount = vars.maxAmountCollateralToLiquidate;
+      debtAmountNeeded = debtToCover;
+    }
+    return (collateralAmount, debtAmountNeeded);
+  }
 
 }

@@ -9,6 +9,7 @@ import "./open_zeppelin/IERC20.sol";
 import "./Logic.sol";
 import "./helpers/Helpers.sol";
 
+
 contract KAAVE {
     using SafeERC20 for IERC20;
     ILendingPool constant lendingPool = ILendingPool(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
@@ -109,6 +110,20 @@ contract KAAVE {
 
         console.log('error code', errorCode);
         console.log('error mesage', errorMsg);
+
+        uint256 actualDebtToLiquidate;
+        uint256 maxCollateralToLiquidate;
+        (actualDebtToLiquidate, maxCollateralToLiquidate) = calculateLiquidationAmounts(
+                collateralReserve,
+                debtReserve,
+                collateralAsset,
+                debtAsset,
+                address(this),
+                address(lendingPoolAddressProvider),
+                userStableDebt,
+                userVariableDebt,
+                debtToCover
+        );
 
     } 
 }
