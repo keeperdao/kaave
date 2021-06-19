@@ -63,8 +63,6 @@ library Logic {
         uint256 bufferAmount
     ) internal view returns (uint256, uint256, uint256, uint256) 
     {
-        console.log(bufferAsset);
-        console.log(bufferAmount);
 
         if (userConfig.isEmpty()) {
             return (0, 0, 0, uint256(-1));
@@ -75,15 +73,6 @@ library Logic {
         ILendingPool lendingPool = ILendingPool(addressProvider.getLendingPool());
 
         (vars.unadjustedTotalCollateralETH, vars.totalDebtETH, , vars.unadjustedAvgLiquidationThreshold, , vars.unadjustedHealthFactor) = lendingPool.getUserAccountData(user);
-        console.log('unadjusted total collateral',vars.unadjustedTotalCollateralETH);
-        console.log('total debt', vars.totalDebtETH);
-        console.log('unadjusted liquidationthreshold', vars.unadjustedAvgLiquidationThreshold);
-        console.log('unadjusted health factor',vars.unadjustedHealthFactor);
-
-        console.log('HEALTH FACTOR DIFFERENCE', vars.unadjustedHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
-        console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - vars.unadjustedHealthFactor);
-        console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
-        console.log('unadjusted healthy', vars.unadjustedHealthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
 
         if (bufferAmount == 0) {
             return (
@@ -94,30 +83,21 @@ library Logic {
             );
         }
 
-
-        console.log('non-zero buffer');
         (, vars.bufferAssetLiquidationThreshold, , vars.bufferAssetDecimals, ) = bufferAssetReserve.configuration.getParams();
-        console.log('liquidation threshold', vars.bufferAssetLiquidationThreshold);
-        console.log('buffer asset decimals', vars.bufferAssetDecimals);
         vars.bufferAssetUnit = 10**vars.bufferAssetDecimals;
         vars.bufferAssetUnitPrice = IPriceOracleGetter(addressProvider.getPriceOracle()).getAssetPrice(bufferAsset);
-        console.log('buffer asset unit', vars.bufferAssetUnit);
-        console.log('buffer asset unit price', vars.bufferAssetUnitPrice);
 
         if (vars.bufferAssetLiquidationThreshold != 0) {
             // we will probably get extremely minor deviations from aave lendingpool health factor
             // due to rounding errors in this calculation. will not address for this challenge.
             uint256 bufferBalanceETH =
                 vars.bufferAssetUnitPrice.mul(bufferAmount).div(vars.bufferAssetUnit);
-            console.log('buffer balance', bufferBalanceETH);
 
             // what if buffer > user collateral?
             vars.adjustedTotalCollateralETH = vars.unadjustedTotalCollateralETH.sub(bufferBalanceETH);
 
-            console.log('adjusted total collaterl', vars.adjustedTotalCollateralETH);
             vars.adjustedAvgLiquidationThreshold = vars.unadjustedAvgLiquidationThreshold.mul(vars.unadjustedTotalCollateralETH)
                 .sub(bufferBalanceETH.mul(vars.bufferAssetLiquidationThreshold)).div(vars.adjustedTotalCollateralETH);
-            console.log('adjusted liquiadtion threshold', vars.adjustedAvgLiquidationThreshold);
         }
 
 
@@ -172,10 +152,6 @@ library Logic {
             Errors.VL_NO_ACTIVE_RESERVE
         );
         }
-
-        // console.log('HEALTH FACTOR DIFFERENCE', userHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
-        // console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - userHealthFactor);
-        // console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
 
         if (userHealthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
             
