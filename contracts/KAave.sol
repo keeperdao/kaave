@@ -108,12 +108,9 @@ contract KAAVE {
             state().bufferAsset, 
             state().bufferAmount
         );
-        console.log('adjusted health factor', vars.healthFactor);
 
         
         (vars.userStableDebt, vars.userVariableDebt) = Helpers.getUserCurrentDebtMemory(address(this), debtReserve);
-        console.log('user stable debt', vars.userStableDebt);
-        console.log('user variable debt', vars.userVariableDebt);
 
         (vars.errorCode, vars.errorMsg) = Logic.validateLiquidationCall(
             collateralReserve,
@@ -124,9 +121,6 @@ contract KAAVE {
             vars.userVariableDebt
         );
         require(vars.errorCode == 0, string(abi.encodePacked(vars.errorMsg)));
-
-        console.log('error code', vars.errorCode);
-        console.log('error mesage', vars.errorMsg);
 
 
         (vars.actualDebtToLiquidate, vars.maxCollateralToLiquidate) = Logic.calculateLiquidationAmounts(
@@ -140,10 +134,6 @@ contract KAAVE {
                 vars.userVariableDebt,
                 debtToCover
         );
-
-        console.log('debt to cover', debtToCover);
-        console.log('actual debt to liquidate', vars.actualDebtToLiquidate);
-        console.log('max collateral to liquidate', vars.maxCollateralToLiquidate);
 
         IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), vars.actualDebtToLiquidate);
         IERC20(debtAsset).safeApprove(address(lendingPool), vars.actualDebtToLiquidate);

@@ -124,7 +124,7 @@ describe("Kaave", function() {
     await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
-    await kaave.connect(borrower).underwrite(wbtc.address, 900);
+    await kaave.connect(borrower).underwrite(wbtc.address, 900); // probably not the borrower underwriting in practice
     const kaaveUserData = await kaave.connect(borrower).getUserAccountData(borrower.getAddress());
 
     await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
@@ -139,13 +139,16 @@ describe("Kaave", function() {
   });
 
   it ("Should not allow liquidations of healthy positions", async function() {
+    await usdc.connect(strategist).approve(kaave.address, 1111111111);
+    await usdc.connect(strategist).approve(LendingPool.address, 1111111111);
+
     await wbtc.connect(borrower).approve(kaave.address, 2000000)
     await kaave.connect(borrower).deposit(wbtc.address, 30000);
     await kaave.connect(borrower).borrow(usdc.address, 4500000, 1);
     await kaave.connect(borrower).underwrite(wbtc.address, 900);
     await usdc.connect(borrower).approve(kaave.address, 1111111111);
     await expect ( 
-      kaave.connect(borrower).preempt(wbtc.address, usdc.address, borrower.getAddress(), 11111111, false)
+      kaave.connect(strategist).preempt(wbtc.address, usdc.address, strategist.getAddress(), 11111111, false)
     ).to.be.revertedWith("42");
 
     await wbtc.connect(borrower).approve(LendingPool.address, 2000000);
@@ -153,7 +156,7 @@ describe("Kaave", function() {
     await LendingPool.connect(borrower).borrow(usdc.address, 4500000, 1, 0, borrower.getAddress());
     await usdc.connect(borrower).approve(LendingPool.address, 1111111111);
     await expect (
-      LendingPool.connect(borrower).liquidationCall(wbtc.address, usdc.address, borrower.getAddress(), 11111111, false)
+      LendingPool.connect(strategist).liquidationCall(wbtc.address, usdc.address, borrower.getAddress(), 11111111, false)
     ).to.be.revertedWith("42");
 
   });
