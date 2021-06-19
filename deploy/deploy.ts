@@ -7,23 +7,37 @@ import { DeployFunction } from 'hardhat-deploy/types'
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts } = hre
   const { deploy } = deployments
-  console.log('Deploying contract')
+  console.log('Deploying contracts')
 
-  const contract = 'KAAVE'
+  const kaaveContract = 'KAAVE'
+  const discountedPriceOracleContract = 'DiscountedPriceOracle'
   const { deployer } = await getNamedAccounts()
   console.log('Deployer address', deployer)
 
-  const deployResult = await deploy(contract, {
+  const kaaveDeployResult = await deploy(kaaveContract, {
     from: deployer,
     args: [], 
     log: true,
   })
 
-  if (deployResult.newlyDeployed) {
+  if (kaaveDeployResult.newlyDeployed) {
     console.log(
-      `contract ${contract} deployed at ${deployResult.receipt?.contractAddress} using ${deployResult.receipt?.gasUsed} gas`
+      `contract ${kaaveContract} deployed at ${kaaveDeployResult.receipt?.contractAddress} using ${kaaveDeployResult.receipt?.gasUsed} gas`
     )
   }
+
+  const oracleDeployResult = await deploy(discountedPriceOracleContract, {
+    from: deployer,
+    args: [kaaveDeployResult.receipt?.contractAddress],
+    log: true,
+  })
+  if (oracleDeployResult.newlyDeployed) {
+    console.log(
+      `contract ${discountedPriceOracleContract} deployed at ${oracleDeployResult.receipt?.contractAddress} using ${oracleDeployResult.receipt?.gasUsed} gas`
+    )
+  }
+
+
 }
 
 export default func
