@@ -8,16 +8,6 @@ import "@nomiclabs/hardhat-etherscan";
 import "hardhat-gas-reporter";
 import "hardhat-deploy";
 
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async (args, hre) => {
-  const accounts = await hre.ethers.getSigners();
-
-  for (const account of accounts) {
-    console.log(account.address);
-  }
-});
-
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -43,16 +33,8 @@ const config: HardhatUserConfig = {
       },
       forking: {
         url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-        blockNumber: 12232000,
+        blockNumber: 12632000,
       },
-    },
-    kovan: {
-      url: `https://eth-kovan.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.KOVAN_KEY as string],
-    }, 
-    ethereum: {
-      url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.MAINNET_KEY as string],
     }
   },
   namedAccounts: {
@@ -60,18 +42,8 @@ const config: HardhatUserConfig = {
       default: 0,
     },
   },
-  etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://etherscan.io/
-    apiKey: process.env.ETHERSCAN_API_KEY as string
-  },
   mocha: {
     timeout: 60000
-  },
-  gasReporter: {
-    currency: 'USD',
-    gasPrice: 100,
-    coinmarketcap: process.env.CMC_API_KEY,
   }
 };
 
