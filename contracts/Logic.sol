@@ -80,6 +80,11 @@ library Logic {
         console.log('unadjusted liquidationthreshold', vars.unadjustedAvgLiquidationThreshold);
         console.log('unadjusted health factor',vars.unadjustedHealthFactor);
 
+        console.log('HEALTH FACTOR DIFFERENCE', vars.unadjustedHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+        console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - vars.unadjustedHealthFactor);
+        console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+        console.log('unadjusted healthy', vars.unadjustedHealthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+
         if (bufferAmount == 0) {
             return (
                 vars.unadjustedTotalCollateralETH,
@@ -166,9 +171,9 @@ library Logic {
         );
         }
 
-        console.log('HEALTH FACTOR DIFFERENCE', userHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
-        console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - userHealthFactor);
-        console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+        // console.log('HEALTH FACTOR DIFFERENCE', userHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+        // console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - userHealthFactor);
+        // console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
 
         if (userHealthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
             

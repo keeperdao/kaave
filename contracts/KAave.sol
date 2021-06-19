@@ -37,6 +37,8 @@ contract KAAVE {
 
     function withdraw(address asset, uint256 amount, address to) external returns (uint256)  {
         // must prevent user from withdrawing buffer
+        // consider the scenario where a user withdraws as much against his position as he can
+        // the underwriting would get triggered and he could immediately pay back to take the buffer as well
         return lendingPool.withdraw(asset, amount, to);
         // validate amount remaining > buffer amount
     }
@@ -91,6 +93,7 @@ contract KAAVE {
     ) external {
 
         // will assume the interest accrued on the buffer belongs to the user
+        // what if position including the buffer is unhealthy?
 
         PreemptLocalVars memory vars;
         DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
@@ -158,6 +161,12 @@ contract KAAVE {
             lendingPool.repay(debtAsset, vars.actualDebtToLiquidate, 1, address(this));
         }
 
+        if (receiveAToken) {
+            IERC20(collateralReserve.aTokenAddress).safeTransfer(user, vars.maxCollateralToLiquidate);
+        } else {
+            lendingPool.withdraw(collateralAsset, vars.maxCollateralToLiquidate, user);
+        }
+
 
         // check to prevent withdrawal of buffer?
 
@@ -175,11 +184,11 @@ contract KAAVE {
         external
         view
         returns (
-        uint256 totalCollateralETH,
-        uint256 totalDebtETH,
-        uint256 currentLiquidationThreshold,
-        uint256 healthFactor
-    )
+            uint256 totalCollateralETH,
+            uint256 totalDebtETH,
+            uint256 currentLiquidationThreshold,
+            uint256 healthFactor
+        )
     {
         DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
         DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
