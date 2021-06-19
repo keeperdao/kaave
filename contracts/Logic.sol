@@ -113,7 +113,7 @@ library Logic {
 
 
     }
-
+    
         /**
     * @dev Calculates the health factor from the corresponding balances
     * @param totalCollateralInETH The total collateral in ETH
@@ -157,7 +157,12 @@ library Logic {
         );
         }
 
+        console.log('HEALTH FACTOR DIFFERENCE', userHealthFactor - HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+        console.log('HEALTH FACTOR DIFFERENCE', HEALTH_FACTOR_LIQUIDATION_THRESHOLD - userHealthFactor);
+        console.log('THRESHOLD',HEALTH_FACTOR_LIQUIDATION_THRESHOLD);
+
         if (userHealthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {
+            
             return (
                 uint256(Errors.CollateralManagerErrors.HEALTH_FACTOR_ABOVE_THRESHOLD),
                 Errors.LPCM_HEALTH_FACTOR_NOT_BELOW_THRESHOLD

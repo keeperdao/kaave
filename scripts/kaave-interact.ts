@@ -77,13 +77,23 @@ async function main() {
 
   await log_balances();
   await wbtc.connect(signer).approve(kaave.address, 2000000)
-  await kaave.connect(signer).deposit(wbtc.address, 1000000);
-  await kaave.connect(signer).borrow(usdc.address, 111111, 1);
+  await kaave.connect(signer).deposit(wbtc.address, 30000);
+  await kaave.connect(signer).borrow(usdc.address, 5000000, 1);
   await log_balances();
-  await kaave.connect(signer).underwrite(wbtc.address, 33333);
+  await kaave.connect(signer).underwrite(wbtc.address, 1000);
   await switchPriceOracleForWbtc();
-  await kaave.preempt(wbtc.address, usdc.address, signer._address, 111, false);
+  await usdc.connect(signer).approve(kaave.address, 1111111111);
+  await kaave.connect(signer).preempt(wbtc.address, usdc.address, signer._address, 11111111, false);
   
+  // await wbtc.connect(signer).approve(LendingPool.address, 2000000);
+  // await LendingPool.connect(signer).deposit(wbtc.address, 30000, signer._address, 0);
+  // await LendingPool.connect(signer).borrow(usdc.address, 5000000, 1, 0, signer._address);
+  // await switchPriceOracleForWbtc();
+  // const userData = await LendingPool.connect(signer).getUserAccountData(signer._address);
+  // console.log(userData.totalCollateralETH.toString());
+  // console.log(userData.totalDebtETH.toString());
+  // console.log(userData.currentLiquidationThreshold.toString());
+  // console.log(userData.healthFactor.toString());
   
 }
 
@@ -93,5 +103,4 @@ main()
     console.error(error);
     process.exit(1);
   });
-
 

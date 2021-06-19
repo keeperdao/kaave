@@ -42,7 +42,7 @@ contract KAAVE {
     }
 
     function repay(address asset, uint256 amount, uint256 rateMode) external returns (uint256) {
-        // should buffer be seized if health factor gets high enough
+        // should buffer be seized if health factor gets high enough?
         return lendingPool.repay(asset, amount, rateMode, address(this));
     }
 
@@ -77,6 +77,7 @@ contract KAAVE {
         uint256 userVariableDebt;
         uint256 actualDebtToLiquidate;
         uint256 maxCollateralToLiquidate;
+        uint256 variableDebtRepaymentAmount;
         uint256 errorCode;
         string errorMsg;
     }
@@ -88,11 +89,9 @@ contract KAAVE {
         uint256 debtToCover, 
         bool receiveAToken
     ) external {
-        // TODO: Implement This
-        // TODO: this function should simulate liquidationCall on AAVE but by not considering
-        //       the buffer provided as collateral in the calculations to check if a position
-        //       is underwater.
+
         // will assume the interest accrued on the buffer belongs to the user
+
         PreemptLocalVars memory vars;
         DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
         DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
@@ -106,8 +105,6 @@ contract KAAVE {
         console.log('user stable debt', vars.userStableDebt);
         console.log('user variable debt', vars.userVariableDebt);
 
-        // vars.uint256 errorCode;
-        // string memory errorMsg;
         (vars.errorCode, vars.errorMsg) = Logic.validateLiquidationCall(
             collateralReserve,
             debtReserve,
@@ -133,6 +130,32 @@ contract KAAVE {
                 vars.userVariableDebt,
                 debtToCover
         );
+
+        console.log('debt to cover', debtToCover);
+        console.log('actual debt to liquidate', vars.actualDebtToLiquidate);
+        console.log('max collateral to liquidate', vars.maxCollateralToLiquidate);
+
+        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), vars.actualDebtToLiquidate);
+        IERC20(debtAsset).safeApprove(address(lendingPool), vars.actualDebtToLiquidate);
+
+        // the user's debt could be spread across variable and stable debt. 
+        // arbitrarily choose variable debt to repay first for this exercise
+        // should probaby choose the more commonly used debt type in practice to potentially save on a contract call and gas
+        if (vars.userVariableDebt > 0) {
+            vars.variableDebtRepaymentAmount = vars.actualDebtToLiquidate < vars.userVariableDebt 
+                ? vars.actualDebtToLiquidate : vars.userVariableDebt;
+            lendingPool.repay(debtAsset, vars.variableDebtRepaymentAmount, 2, address(this));
+            vars.actualDebtToLiquidate -= vars.variableDebtRepaymentAmount;
+        }
+        if (vars.actualDebtToLiquidate > 0) {
+            lendingPool.repay(debtAsset, vars.actualDebtToLiquidate, 1, address(this));
+        }
+
+        // vars.healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
+        //     console.log('adjusted health factor', vars.healthFactor);
+
+
+        // check to prevent withdrawal of buffer?
 
     } 
 }
