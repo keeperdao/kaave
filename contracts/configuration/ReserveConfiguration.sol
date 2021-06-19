@@ -52,7 +52,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The loan to value
    **/
-  function getLtv(DataTypes.ReserveConfigurationMap storage self) internal view returns (uint256) {
+  function getLtv(DataTypes.ReserveConfigurationMap memory self) internal view returns (uint256) {
     return self.data & ~LTV_MASK;
   }
 
@@ -77,7 +77,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The liquidation threshold
    **/
-  function getLiquidationThreshold(DataTypes.ReserveConfigurationMap storage self)
+  function getLiquidationThreshold(DataTypes.ReserveConfigurationMap memory self)
     internal
     view
     returns (uint256)
@@ -103,7 +103,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The liquidation bonus
    **/
-  function getLiquidationBonus(DataTypes.ReserveConfigurationMap storage self)
+  function getLiquidationBonus(DataTypes.ReserveConfigurationMap memory self)
     internal
     view
     returns (uint256)
@@ -127,7 +127,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The decimals of the asset
    **/
-  function getDecimals(DataTypes.ReserveConfigurationMap storage self) internal view returns (uint256) {
+  function getDecimals(DataTypes.ReserveConfigurationMap memory self) internal view returns (uint256) {
     return (self.data & ~DECIMALS_MASK) >> RESERVE_DECIMALS_START_BIT_POSITION;
   }
 
@@ -147,7 +147,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The active state
    **/
-  function getActive(DataTypes.ReserveConfigurationMap storage self) internal view returns (bool) {
+  function getActive(DataTypes.ReserveConfigurationMap memory self) internal view returns (bool) {
     return (self.data & ~ACTIVE_MASK) != 0;
   }
 
@@ -167,7 +167,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The frozen state
    **/
-  function getFrozen(DataTypes.ReserveConfigurationMap storage self) internal view returns (bool) {
+  function getFrozen(DataTypes.ReserveConfigurationMap memory self) internal view returns (bool) {
     return (self.data & ~FROZEN_MASK) != 0;
   }
 
@@ -187,7 +187,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The borrowing state
    **/
-  function getBorrowingEnabled(DataTypes.ReserveConfigurationMap storage self) internal view returns (bool) {
+  function getBorrowingEnabled(DataTypes.ReserveConfigurationMap memory self) internal view returns (bool) {
     return (self.data & ~BORROWING_MASK) != 0;
   }
 
@@ -210,7 +210,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The stable rate borrowing state
    **/
-  function getStableRateBorrowingEnabled(DataTypes.ReserveConfigurationMap storage self)
+  function getStableRateBorrowingEnabled(DataTypes.ReserveConfigurationMap memory self)
     internal
     view
     returns (bool)
@@ -239,7 +239,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The reserve factor
    **/
-  function getReserveFactor(DataTypes.ReserveConfigurationMap storage self) internal view returns (uint256) {
+  function getReserveFactor(DataTypes.ReserveConfigurationMap memory self) internal view returns (uint256) {
     return (self.data & ~RESERVE_FACTOR_MASK) >> RESERVE_FACTOR_START_BIT_POSITION;
   }
 
@@ -248,7 +248,7 @@ library ReserveConfiguration {
    * @param self The reserve configuration
    * @return The state flags representing active, frozen, borrowing enabled, stableRateBorrowing enabled
    **/
-  function getFlags(DataTypes.ReserveConfigurationMap storage self)
+  function getFlags(DataTypes.ReserveConfigurationMap memory self)
     internal
     view
     returns (

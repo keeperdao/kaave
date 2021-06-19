@@ -7,6 +7,7 @@ import "./Aave.sol";
 import "./open_zeppelin/SafeERC20.sol";
 import "./open_zeppelin/IERC20.sol";
 import "./Logic.sol";
+import "./helpers/Helpers.sol";
 
 contract KAAVE {
     using SafeERC20 for IERC20;
@@ -81,11 +82,33 @@ contract KAAVE {
         //       the buffer provided as collateral in the calculations to check if a position
         //       is underwater.
         // will assume the interest accrued on the buffer belongs to the user
-        DataTypes.ReserveConfigurationMap memory bufferAssetReserveConfiguration = lendingPool.getConfiguration(state().bufferAsset);
+        DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
         DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
         DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
         DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
-        uint256 healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserveConfiguration, state().bufferAsset, state().bufferAmount);
+        uint256 healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
         console.log('adjusted health factor', healthFactor);
+
+        uint256 userStableDebt;
+        uint256 userVariableDebt;
+        (userStableDebt, userVariableDebt) = Helpers.getUserCurrentDebtMemory(address(this), debtReserve);
+        console.log('user stable debt', userStableDebt);
+        console.log('user variable debt', userVariableDebt);
+
+        uint256 errorCode;
+        string memory errorMsg;
+        (errorCode, errorMsg) = Logic.validateLiquidationCall(
+            collateralReserve,
+            debtReserve,
+            userConfig,
+            healthFactor,
+            userStableDebt,
+            userVariableDebt
+        );
+        require(errorCode == 0, string(abi.encodePacked(errorMsg)));
+
+        console.log('error code', errorCode);
+        console.log('error mesage', errorMsg);
+
     } 
 }
