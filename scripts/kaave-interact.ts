@@ -44,6 +44,7 @@ async function main() {
   await kaave.connect(signer).deposit(wbtc.address, 1000000);
   await kaave.connect(signer).borrow(usdc.address, 111111, 1);
   await log_balances();
+  await kaave.connect(signer).underwrite(wbtc.address, 33333);
   await kaave.preempt(wbtc.address, usdc.address, signer._address, 111, false);
   
   
@@ -55,3 +56,4 @@ main()
     console.error(error);
     process.exit(1);
   });
+

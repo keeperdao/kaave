@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity 0.7.4;
+pragma experimental ABIEncoderV2;
 
 import "hardhat/console.sol";
 import "./Aave.sol";
 import "./open_zeppelin/SafeERC20.sol";
 import "./open_zeppelin/IERC20.sol";
+import "./Logic.sol";
 
 contract KAAVE {
     using SafeERC20 for IERC20;
     ILendingPool constant lendingPool = ILendingPool(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+    ILendingPoolAddressesProvider constant lendingPoolAddressProvider = ILendingPoolAddressesProvider(0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5);
 
     bytes32 constant KAAVE_STORAGE_POSITION = keccak256("keeperdao.hiding-vault.aave.storage");
 
@@ -50,6 +53,8 @@ contract KAAVE {
 
     function underwrite(address asset, uint256 amount) external returns (uint256) {
         // enforce some maximum health factor?
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(asset).safeApprove(address(lendingPool), amount);
         state().bufferAsset = asset;
         state().bufferAmount = amount;
         lendingPool.deposit(asset, amount, address(this), 0);
@@ -75,14 +80,12 @@ contract KAAVE {
         // TODO: this function should simulate liquidationCall on AAVE but by not considering
         //       the buffer provided as collateral in the calculations to check if a position
         //       is underwater.
-        // will assume the interest accured on the buffer belongs to the user
-        uint256 totalCollateralETH;
-        uint256 totalDebtETH;
-        uint256 availableBorrowsETH;
-        uint256 currentLiquidationThreshold;
-        uint256 ltv;
-        uint256 healthFactor;
-        (totalCollateralETH, totalDebtETH, availableBorrowsETH, currentLiquidationThreshold, ltv, healthFactor) = lendingPool.getUserAccountData(address(this));
-
+        // will assume the interest accrued on the buffer belongs to the user
+        DataTypes.ReserveConfigurationMap memory bufferAssetReserveConfiguration = lendingPool.getConfiguration(state().bufferAsset);
+        DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
+        DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
+        DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
+        uint256 healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserveConfiguration, state().bufferAsset, state().bufferAmount);
+        console.log('adjusted health factor', healthFactor);
     } 
 }
