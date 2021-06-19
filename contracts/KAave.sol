@@ -97,7 +97,14 @@ contract KAAVE {
         DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
         DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
         DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
-        vars.healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
+        (,,,vars.healthFactor) = Logic.calculateAdjustedAccountData(
+            address(lendingPoolAddressProvider), 
+            address(this), 
+            userConfig, 
+            bufferAssetReserve, 
+            state().bufferAsset, 
+            state().bufferAmount
+        );
         console.log('adjusted health factor', vars.healthFactor);
 
         
@@ -151,11 +158,43 @@ contract KAAVE {
             lendingPool.repay(debtAsset, vars.actualDebtToLiquidate, 1, address(this));
         }
 
-        // vars.healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
-        //     console.log('adjusted health factor', vars.healthFactor);
-
 
         // check to prevent withdrawal of buffer?
 
     } 
+
+        /**
+    * @dev Returns the user account data across all the reserves
+    * @param user The address of the user
+    * @return totalCollateralETH the total collateral in ETH of the user
+    * @return totalDebtETH the total debt in ETH of the user
+    * @return currentLiquidationThreshold the liquidation threshold of the user
+    * @return healthFactor the current health factor of the user
+    **/
+    function getUserAccountData(address user)
+        external
+        view
+        returns (
+        uint256 totalCollateralETH,
+        uint256 totalDebtETH,
+        uint256 currentLiquidationThreshold,
+        uint256 healthFactor
+    )
+    {
+        DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
+        DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
+        (
+            totalCollateralETH,
+            totalDebtETH,
+            currentLiquidationThreshold,
+            healthFactor
+        ) = Logic.calculateAdjustedAccountData(
+            address(lendingPoolAddressProvider), 
+            address(this), 
+            userConfig, 
+            bufferAssetReserve, 
+            state().bufferAsset, 
+            state().bufferAmount
+        );
+    }
 }

@@ -54,20 +54,20 @@ library Logic {
         uint256 adjustedAvgLiquidationThreshold;
     }
 
-    function calculateAdjustedHealthFactor(
+    function calculateAdjustedAccountData(
         address lendingPoolAddressProvider,
         address user,
         DataTypes.UserConfigurationMap memory userConfig,
         DataTypes.ReserveData memory bufferAssetReserve,
         address bufferAsset,
         uint256 bufferAmount
-    ) internal view returns (uint256) 
+    ) internal view returns (uint256, uint256, uint256, uint256) 
     {
         console.log(bufferAsset);
         console.log(bufferAmount);
 
         if (userConfig.isEmpty()) {
-            return uint256(-1);
+            return (0, 0, 0, uint256(-1));
         }
         CalculateUserAccountDataVars memory vars;
         
@@ -81,7 +81,12 @@ library Logic {
         console.log('unadjusted health factor',vars.unadjustedHealthFactor);
 
         if (bufferAmount == 0) {
-            return vars.unadjustedHealthFactor;
+            return (
+                vars.unadjustedTotalCollateralETH,
+                vars.totalDebtETH,
+                vars.unadjustedAvgLiquidationThreshold,
+                vars.unadjustedHealthFactor
+            );
         }
 
 
@@ -109,8 +114,12 @@ library Logic {
         }
 
 
-        return calculateHealthFactorFromBalances(vars.adjustedTotalCollateralETH, vars.totalDebtETH, vars.adjustedAvgLiquidationThreshold);
-
+        return (
+            vars.adjustedTotalCollateralETH,
+            vars.totalDebtETH,
+            vars.adjustedAvgLiquidationThreshold,
+            calculateHealthFactorFromBalances(vars.adjustedTotalCollateralETH, vars.totalDebtETH, vars.adjustedAvgLiquidationThreshold)
+        );
 
     }
     
