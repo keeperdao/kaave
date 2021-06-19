@@ -71,6 +71,16 @@ contract KAAVE {
         );
     }
 
+    struct PreemptLocalVars {
+        uint256 healthFactor;
+        uint256 userStableDebt;
+        uint256 userVariableDebt;
+        uint256 actualDebtToLiquidate;
+        uint256 maxCollateralToLiquidate;
+        uint256 errorCode;
+        string errorMsg;
+    }
+
     function preempt(
         address collateralAsset, 
         address debtAsset, 
@@ -83,45 +93,44 @@ contract KAAVE {
         //       the buffer provided as collateral in the calculations to check if a position
         //       is underwater.
         // will assume the interest accrued on the buffer belongs to the user
+        PreemptLocalVars memory vars;
         DataTypes.ReserveData memory bufferAssetReserve = lendingPool.getReserveData(state().bufferAsset);
         DataTypes.ReserveData memory collateralReserve = lendingPool.getReserveData(collateralAsset);
         DataTypes.ReserveData memory debtReserve = lendingPool.getReserveData(debtAsset);
         DataTypes.UserConfigurationMap memory userConfig = lendingPool.getUserConfiguration(address(this));
-        uint256 healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
-        console.log('adjusted health factor', healthFactor);
+        vars.healthFactor = Logic.calculateAdjustedHealthFactor(address(lendingPoolAddressProvider), address(this), userConfig, bufferAssetReserve, state().bufferAsset, state().bufferAmount);
+        console.log('adjusted health factor', vars.healthFactor);
 
-        uint256 userStableDebt;
-        uint256 userVariableDebt;
-        (userStableDebt, userVariableDebt) = Helpers.getUserCurrentDebtMemory(address(this), debtReserve);
-        console.log('user stable debt', userStableDebt);
-        console.log('user variable debt', userVariableDebt);
+        
+        (vars.userStableDebt, vars.userVariableDebt) = Helpers.getUserCurrentDebtMemory(address(this), debtReserve);
+        console.log('user stable debt', vars.userStableDebt);
+        console.log('user variable debt', vars.userVariableDebt);
 
-        uint256 errorCode;
-        string memory errorMsg;
-        (errorCode, errorMsg) = Logic.validateLiquidationCall(
+        // vars.uint256 errorCode;
+        // string memory errorMsg;
+        (vars.errorCode, vars.errorMsg) = Logic.validateLiquidationCall(
             collateralReserve,
             debtReserve,
             userConfig,
-            healthFactor,
-            userStableDebt,
-            userVariableDebt
+            vars.healthFactor,
+            vars.userStableDebt,
+            vars.userVariableDebt
         );
-        require(errorCode == 0, string(abi.encodePacked(errorMsg)));
+        require(vars.errorCode == 0, string(abi.encodePacked(vars.errorMsg)));
 
-        console.log('error code', errorCode);
-        console.log('error mesage', errorMsg);
+        console.log('error code', vars.errorCode);
+        console.log('error mesage', vars.errorMsg);
 
-        uint256 actualDebtToLiquidate;
-        uint256 maxCollateralToLiquidate;
-        (actualDebtToLiquidate, maxCollateralToLiquidate) = calculateLiquidationAmounts(
+
+        (vars.actualDebtToLiquidate, vars.maxCollateralToLiquidate) = Logic.calculateLiquidationAmounts(
                 collateralReserve,
                 debtReserve,
                 collateralAsset,
                 debtAsset,
                 address(this),
                 address(lendingPoolAddressProvider),
-                userStableDebt,
-                userVariableDebt,
+                vars.userStableDebt,
+                vars.userVariableDebt,
                 debtToCover
         );
 
