@@ -104,7 +104,7 @@ contract KAAVE {
     function preempt(
         address _collateralAsset, 
         address _debtAsset, 
-        //address _user, - we assume user is wrapped lending position which is this contract address
+        //address _user, - we assume user is the wrapped lending position which is this contract address
         uint256 _debtToCover, 
         bool _receiveAToken
     ) onlyJitu external {
@@ -122,8 +122,9 @@ contract KAAVE {
         LiquidationLocalVars memory vars;
 
         (vars.totalCollateralETH, 
-            vars.totalDebtETH, , ,
-            vars.liquidationThreshold, 
+            vars.totalDebtETH, , 
+            vars.liquidationThreshold,
+            , 
             ) = lendingPool.getUserAccountData(address(this));
 
         ILendingPoolAddressesProvider poolAddressProvider = ILendingPoolAddressesProvider(lendingPool.getAddressesProvider());
