@@ -42,6 +42,8 @@ contract KAAVE {
         uint256 maxDebtToRepayETH;
         uint256 aCollateralBalance;
         uint256 aCollateralBalanceETH;
+        uint256 priceACollateral;
+        uint256 aCollateralToWithdraw;
     }
 
 
@@ -152,7 +154,7 @@ contract KAAVE {
         if(vars.healthFactor > HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {}
         else {
             vars.maxDebtToRepay = _debtToCover;
-            vars.maxDebtToRepayETH = debtToCoverEth;
+            vars.maxDebtToRepayETH = vars.debtToCoverEth;
             //next use protocol data provider to get stable debt and variable debt tokens
             address protocolDataProvider = poolAddressProvider  
                 .getAddress(0x0100000000000000000000000000000000000000000000000000000000000000);
@@ -204,15 +206,15 @@ contract KAAVE {
             //we need the price of the collateral aToken
             (address aCollateralAsset, , ) 
             = dataProvider.getReserveTokensAddresses(_collateralAsset);
-            uint256 priceACollateral = oracle.getAssetPrice(aCollateralAsset);
-            uint256 aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(priceACollateral);
+            vars.priceACollateral = oracle.getAssetPrice(aCollateralAsset);
+            vars.aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(vars.priceACollateral);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
-            vars.aCollateralBalanceETH = vars.aCollateralBalance.mul(priceACollateral);
+            vars.aCollateralBalanceETH = vars.aCollateralBalance.mul(vars.priceACollateral);
             require(vars.aCollateralBalanceETH > vars.maxDebtToRepayETH, "not enough collateral amount for the asset you want to withdraw");
 
  
             if(_receiveAToken) {  
-                IERC20(aCollateralAsset).transfer(msg.sender, aCollateralToWithdraw);
+                IERC20(aCollateralAsset).transfer(msg.sender, vars.aCollateralToWithdraw);
             } else {
                 lendingPool.withdraw(_collateralAsset, vars.collateralToWithdraw, msg.sender);
             }
