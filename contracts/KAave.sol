@@ -40,6 +40,8 @@ contract KAAVE {
         uint256 maxRepayableDebt;
         uint256 collateralToWithdraw;
         uint256 maxDebtToRepayETH;
+        uint256 aCollateralBalance;
+        uint256 aCollateralBalanceETH;
     }
 
 
@@ -171,7 +173,6 @@ contract KAAVE {
                 .add((vars.variableDebtBalance).mul(priceVariableDebt))
                 .percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
-            //REVIEW-not good here since I am comparing the debt asset with the balances of underlying debt tokens
             if(vars.maxDebtToRepayETH > vars.maxRepayableDebt) {
                 vars.maxDebtToRepayETH = vars.maxRepayableDebt;
                 //denominated back into debt asset price
@@ -199,12 +200,18 @@ contract KAAVE {
             vars.collateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(vars.priceBuffer);
             require(_collateralAsset == state().bufferAsset, "collateral and buffer are not the same");
 
-            if(_receiveAToken) {
-                //we need the price of the collateral aToken
-                (address aCollateralAsset, , ) 
-                = dataProvider.getReserveTokensAddresses(_collateralAsset);
-                uint256 priceACollateral = oracle.getAssetPrice(aCollateralAsset);
-                uint256 aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(priceACollateral);
+
+            //we need the price of the collateral aToken
+            (address aCollateralAsset, , ) 
+            = dataProvider.getReserveTokensAddresses(_collateralAsset);
+            uint256 priceACollateral = oracle.getAssetPrice(aCollateralAsset);
+            uint256 aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(priceACollateral);
+            vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
+            vars.aCollateralBalanceETH = vars.aCollateralBalance.mul(priceACollateral);
+            require(vars.aCollateralBalanceETH > vars.maxDebtToRepayETH, "not enough collateral amount for the asset you want to withdraw");
+
+ 
+            if(_receiveAToken) {  
                 IERC20(aCollateralAsset).transfer(msg.sender, aCollateralToWithdraw);
             } else {
                 lendingPool.withdraw(_collateralAsset, vars.collateralToWithdraw, msg.sender);
