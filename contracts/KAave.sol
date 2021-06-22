@@ -39,6 +39,7 @@ contract KAAVE {
         uint256 maxDebtToRepay;
         uint256 maxRepayableDebt;
         uint256 collateralToWithdraw;
+        uint256 maxDebtToRepayETH;
     }
 
 
@@ -127,17 +128,21 @@ contract KAAVE {
             , 
             ) = lendingPool.getUserAccountData(address(this));
 
+        //return the lending pool address provider
         ILendingPoolAddressesProvider poolAddressProvider = ILendingPoolAddressesProvider(lendingPool.getAddressesProvider());
 
+        //proxy price provider contract
         IPriceOracleGetter oracle = IPriceOracleGetter(poolAddressProvider.getPriceOracle());
+        //price returned in ETH
         vars.priceBuffer = oracle.getAssetPrice(state().bufferAsset);
         vars.priceDebt = oracle.getAssetPrice(_debtAsset);
 
         vars.bufferAmountEth = (state().bufferAmount).mul(vars.priceBuffer);
         vars.debtToCoverEth = _debtToCover.mul(vars.priceDebt);
-        require(vars.debtToCoverEth < vars.totalDebtETH, "you are trying to cover too much debt");
+        require(vars.debtToCoverEth < vars.totalDebtETH, "you are trying to repay too much debt");
 
         //logic explained in GenericLogic.sol Aave library, function calculateHealthFactorFromBalances
+        //REVIEW
         vars.healthFactor = (vars.totalCollateralETH.sub(vars.bufferAmountEth))
             .percentMul(vars.liquidationThreshold)
             .wadDiv(vars.totalDebtETH);
@@ -145,7 +150,7 @@ contract KAAVE {
         if(vars.healthFactor > HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {}
         else {
             vars.maxDebtToRepay = _debtToCover;
-        
+            vars.maxDebtToRepayETH = debtToCoverEth;
             //next use protocol data provider to get stable debt and variable debt tokens
             address protocolDataProvider = poolAddressProvider  
                 .getAddress(0x0100000000000000000000000000000000000000000000000000000000000000);
@@ -157,12 +162,20 @@ contract KAAVE {
             vars.stableDebtBalance = IERC20(stableDebtTokenAddress).balanceOf(address(this));
             vars.variableDebtBalance = IERC20(variableDebtTokenAddress).balanceOf(address(this));
 
-            //applying a repay threshold limit of 50%
-            vars.maxRepayableDebt = vars.stableDebtBalance.add(vars.variableDebtBalance)
+            uint256 priceStableDebt = oracle.getAssetPrice(stableDebtTokenAddress);
+            uint256 priceVariableDebt = oracle.getAssetPrice(variableDebtTokenAddress);
+
+            //applying a repay threshold limit of 50% of the current debt (denominated in _debtAsset)
+            //the maxRepayableDebt amount is given in ETH
+            vars.maxRepayableDebt = (vars.stableDebtBalance.mul(priceStableDebt))
+                .add((vars.variableDebtBalance).mul(priceVariableDebt))
                 .percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
-            if(_debtToCover > vars.maxRepayableDebt) {
-                vars.maxDebtToRepay = vars.maxRepayableDebt;
+            //REVIEW-not good here since I am comparing the debt asset with the balances of underlying debt tokens
+            if(vars.maxDebtToRepayETH > vars.maxRepayableDebt) {
+                vars.maxDebtToRepayETH = vars.maxRepayableDebt;
+                //denominated back into debt asset price
+                vars.maxDebtToRepay = vars.maxDebtToRepayETH.div(vars.priceDebt);
             }
 
 
