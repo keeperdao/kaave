@@ -206,6 +206,11 @@ contract KAAVE {
             //we need the price of the collateral aToken
             (address aCollateralAsset, , ) 
             = dataProvider.getReserveTokensAddresses(_collateralAsset);
+            /*
+                aToken seems to be pegged to the underlying token 1:1 
+                anyway so using oracle and conversions for aTokens is
+                actually not relevant
+            */
             vars.priceACollateral = oracle.getAssetPrice(aCollateralAsset);
             vars.aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(vars.priceACollateral);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
