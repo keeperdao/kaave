@@ -183,11 +183,14 @@ contract KAAVE {
             IERC20(_debtAsset).transferFrom(msg.sender, address(this), vars.maxDebtToRepay);
             IERC20(_debtAsset).approve(address(lendingPool), vars.maxDebtToRepay);
 
-            if(vars.variableDebtBalance > vars.maxDebtToRepay) {
+            if(vars.variableDebtBalance.mul(priceVariableDebt) > vars.maxDebtToRepayETH) {
                 lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 2, address(this));
             } else if (vars.variableDebtBalance > 0) {
-                lendingPool.repay(_debtAsset, vars.variableDebtBalance, 2, address(this));
-                lendingPool.repay(_debtAsset, vars.maxDebtToRepay.sub(vars.variableDebtBalance), 1, address(this));
+                //we convert the variable debt balance into an amount denominated in the debt token we are trying to repay
+                //we repay all the variable debt balance first
+                uint256 variableDebtBalanceInDebtToken = (vars.variableDebtBalance.mul(priceVariableDebt)).div(vars.priceDebt);
+                lendingPool.repay(_debtAsset, variableDebtBalanceInDebtToken, 2, address(this));
+                lendingPool.repay(_debtAsset, vars.maxDebtToRepay.sub(variableDebtBalanceInDebtToken), 1, address(this));
             } else {
                 lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 1, address(this));
             }
