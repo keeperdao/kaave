@@ -4,6 +4,7 @@ pragma solidity ^0.7.4;
 import "../interfaces/IERC20.sol";
 import "hardhat/console.sol";
 import "./Aave.sol";
+import {ILendingPool} from './Aave.sol';
 import {IPriceOracleGetter} from '../interfaces/IPriceOracleGetter.sol';
 import {IProtocolDataProvider} from '../interfaces/IProtocolDataProvider.sol';
 import {SafeMath} from "../libraries/SafeMath.sol";
@@ -17,7 +18,7 @@ contract KAAVE {
     using WadRayMath for uint256;
     using PercentageMath for uint256;
 
-    ILendingPool constant lendingPool = ILendingPool(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    ILendingPool constant lendingPool = ILendingPool(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
 
     uint256 public constant HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1 ether;
     bytes32 constant KAAVE_STORAGE_POSITION = keccak256("keeperdao.hiding-vault.aave.storage");
