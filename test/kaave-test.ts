@@ -1,3 +1,4 @@
+
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
@@ -8,7 +9,7 @@ describe("Token", function () {
     beforeEach(async function () {
       accounts = await ethers.getSigners();
 
-      const KAave = await ethers.getContractFactory("KAave");
+      const KAave = await ethers.getContractFactory("KAAVE");
       const kaave = KAave.deploy();
     });
     
