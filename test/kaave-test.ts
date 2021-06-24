@@ -20,14 +20,17 @@ describe("Token", function () {
     const wbtcWhaleAddress = "0x6555e1cc97d3cba6eaddebbcd7ca51d75771e0b8";
     const ethWhaleAddress = "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B";
     const secondWhaleAddress = "0xe3dd3914ab28bb552d41b8dfe607355de4c37a51";
+    const daiWhaleAddress = "0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503";
+  
 
-    let wbtc: Contract, kaave: Contract, aaveLendingPool: Contract;
+    let wbtc: Contract, kaave: Contract, aaveLendingPool: Contract, dai: Contract;
     
-    let wbtcWhale: Signer, secondWhale: Signer, ethWhale: Signer;
+    let wbtcWhale: Signer, secondWhale: Signer, ethWhale: Signer, daiWhale: Signer;
     
 
     before(async function () {
         wbtc = await ethers.getContractAt("IERC20", "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599");
+        dai = await ethers.getContractAt("IERC20", "0x6b175474e89094c44da98b954eedeac495271d0f");
         aaveLendingPool = await ethers.getContractAt("ILendingPool", "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9");
     });
 
@@ -36,6 +39,7 @@ describe("Token", function () {
       wbtcWhale = await impersonateAddress(wbtcWhaleAddress);
       secondWhale = await impersonateAddress(secondWhaleAddress);
       ethWhale = await impersonateAddress(ethWhaleAddress);
+      daiWhale = await impersonateAddress(daiWhaleAddress);
 
       var KAave = await ethers.getContractFactory("KAAVE");
       kaave = await KAave.deploy();
@@ -43,8 +47,25 @@ describe("Token", function () {
 
       await wbtc.connect(wbtcWhale).approve(kaave.address, ethers.utils.parseEther("500"));
       await wbtc.connect(wbtcWhale).approve(aaveLendingPool.address, ethers.utils.parseEther("500"));
-    });
+      //setting our jitu address
+      await kaave.connect(secondWhale).setJitu(ethWhaleAddress);
+      //giving the jitu some dai
+      
 
+      ethWhale.sendTransaction({
+        to: wbtcWhaleAddress,
+        value: ethers.utils.parseEther("3.0")
+      })
+
+      ethWhale.sendTransaction({
+        to: daiWhaleAddress,
+        value: ethers.utils.parseEther("3.0")
+      })
+
+      //await dai.connect(daiWhale).transfer(ethWhaleAddress, 10000);
+
+    });
+    
     afterEach(async function () {
         await hre.network.provider.request({
           method: "hardhat_reset",
@@ -56,17 +77,13 @@ describe("Token", function () {
           }]
         })
       });
+      
 
-
-    it.only("Should deposit through the lendingPool and through the hiding vault and expect user data to be the same", async function() {
+    it("Should deposit through the lendingPool and through the hiding vault and expect user data to be the same", async function() {
 
         //check a quick transfer status
         var balance = await wbtc.balanceOf(wbtcWhale.getAddress());
         console.log("whale wbtc balance", balance.toNumber());
-        ethWhale.sendTransaction({
-            to: wbtcWhaleAddress,
-            value: ethers.utils.parseEther("5.0")
-          })
         console.log("lending pool", aaveLendingPool.address);
         console.log("kaave", kaave.address);
         await wbtc.connect(wbtcWhale).approve(kaave.address, 500);
@@ -87,22 +104,21 @@ describe("Token", function () {
         console.log("pool user data", poolUserData.totalCollateralETH.toNumber());
 
         expect(kaaveUserData.totalCollateralETH).to.be.equal(poolUserData.totalCollateralETH);
+        expect(kaaveUserData.healthFactor).to.be.equal(poolUserData.healthFactor);
     });
 
-    it("Should be able to deposit through the vault and verify user data", async function() {
-        await kaave.connect(wbtcWhale).deposit(wbtc.address, ethers.utils.parseEther("100"));
-        await aaveLendingPool.connect(wbtcWhale).deposit(wbtc.address, ethers.utils.parseEther("100"), wbtcWhaleAddress, 0);
-        console.log("balance", (await (wbtc.balanceOf(wbtcWhale.getAddress()))).toNumber());
-        await wbtc.connect(wbtcWhale).transfer(kaave.address, ethers.utils.parseEther("100"));
-        console.log("balance2", (await (wbtc.balanceOf(wbtcWhale.getAddress()))).toNumber());
+    it("Should verify reversions", async function() {
 
-        const kaaveUserData = aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-        const wbtcWhaleUserData = aaveLendingPool.connect(wbtcWhale).getUserAccountData(wbtcWhale.getAddress());
+        await kaave.connect(wbtcWhale).deposit(wbtc.address, ethers.utils.parseUnits('100', 8));
+        await kaave.connect(wbtcWhale).borrow(dai.address, 1000, 2);
 
-        console.log("lending pool", aaveLendingPool.address);
-        console.log("whale wbtc totalCollateralETH", wbtcWhaleUserData.totalCollateralETH);
-        console.log("whale wbtc healthFactor", kaaveUserData.healthFactor);
-        console.log("wbtc vault healthFactor", wbtcWhaleUserData.healthFactor);
-        expect(kaaveUserData.healthFactor).to.be.equal(wbtcWhaleUserData.healthFactor);
+        await expect(kaave.connect(daiWhale).preempt(wbtc.address, dai.address, 100, true))
+          .to.be.reverted;
+        await expect(kaave.connect(ethWhale).preempt(wbtc.address, dai.address, 5000, true))
+          .to.be.revertedWith('you are trying to repay too much debt');
+    });
+
+    it("Should be able to preempt a liquidation if lending position is unhealthy", async function() {
+
     });
   });
