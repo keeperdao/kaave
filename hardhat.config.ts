@@ -62,7 +62,7 @@ module.exports = {
       },
       forking: {
         url: mainnet,
-        blockNumber: 12232000,
+        blockNumber: 12522000,
       },
     },
     kovan: {
