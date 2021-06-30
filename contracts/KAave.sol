@@ -45,6 +45,8 @@ contract KAAVE {
         uint256 aCollateralBalanceETH;
         uint256 priceACollateral;
         uint256 aCollateralToWithdraw;
+        uint256 repaidAmount;
+        uint256 result;
     }
 
 
@@ -139,17 +141,17 @@ contract KAAVE {
         //proxy price provider contract
         IPriceOracleGetter oracle = IPriceOracleGetter(poolAddressProvider.getPriceOracle());
         //price returned in ETH
-        vars.priceBuffer = oracle.getAssetPrice(state().bufferAsset);
+        vars.priceBuffer = oracle.getAssetPrice(_collateralAsset);
         vars.priceDebt = oracle.getAssetPrice(_debtAsset);
 
-        vars.bufferAmountEth = (state().bufferAmount).mul(vars.priceBuffer);
-        vars.debtToCoverEth = _debtToCover.mul(vars.priceDebt);
+        vars.bufferAmountEth = (state().bufferAmount).wadMul(vars.priceBuffer);
+        vars.debtToCoverEth = _debtToCover.wadMul(vars.priceDebt);
         require(vars.debtToCoverEth < vars.totalDebtETH, "you are trying to repay too much debt");
 
         //logic explained in GenericLogic.sol Aave library, function calculateHealthFactorFromBalances
-        //REVIEW
-        vars.healthFactor = (vars.totalCollateralETH.sub(vars.bufferAmountEth))
-            .percentMul(vars.liquidationThreshold)
+        //logic to check
+        vars.result = vars.totalCollateralETH.sub(vars.bufferAmountEth);
+        vars.healthFactor = ((vars.result).percentMul(vars.liquidationThreshold))
             .wadDiv(vars.totalDebtETH);
         
         if(vars.healthFactor > HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {}
@@ -172,14 +174,14 @@ contract KAAVE {
 
             //applying a repay threshold limit of 50% of the current debt (denominated in _debtAsset)
             //the maxRepayableDebt amount is given in ETH
-            vars.maxRepayableDebt = (vars.stableDebtBalance.mul(priceStableDebt))
-                .add((vars.variableDebtBalance).mul(priceVariableDebt))
+            vars.maxRepayableDebt = (vars.stableDebtBalance.wadMul(priceStableDebt))
+                .add((vars.variableDebtBalance).wadMul(priceVariableDebt))
                 .percentMul(LIQUIDATION_CLOSE_FACTOR_PERCENT);
 
             if(vars.maxDebtToRepayETH > vars.maxRepayableDebt) {
                 vars.maxDebtToRepayETH = vars.maxRepayableDebt;
                 //denominated back into debt asset price
-                vars.maxDebtToRepay = vars.maxDebtToRepayETH.div(vars.priceDebt);
+                vars.maxDebtToRepay = vars.maxDebtToRepayETH.wadDiv(vars.priceDebt);
             }
 
 
@@ -187,20 +189,41 @@ contract KAAVE {
             IERC20(_debtAsset).transferFrom(msg.sender, address(this), vars.maxDebtToRepay);
             IERC20(_debtAsset).approve(address(lendingPool), vars.maxDebtToRepay);
 
-            if(vars.variableDebtBalance.mul(priceVariableDebt) > vars.maxDebtToRepayETH) {
+            /*
+            if(vars.variableDebtBalance.wadMul(priceVariableDebt) > vars.maxDebtToRepayETH) {
                 lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 2, address(this));
             } else if (vars.variableDebtBalance > 0) {
                 //we convert the variable debt balance into an amount denominated in the debt token we are trying to repay
                 //we repay all the variable debt balance first
-                uint256 variableDebtBalanceInDebtToken = (vars.variableDebtBalance.mul(priceVariableDebt)).div(vars.priceDebt);
+                uint256 variableDebtBalanceInDebtToken = (vars.variableDebtBalance.wadMul(priceVariableDebt)).wadDiv(vars.priceDebt);
                 lendingPool.repay(_debtAsset, variableDebtBalanceInDebtToken, 2, address(this));
                 lendingPool.repay(_debtAsset, vars.maxDebtToRepay.sub(variableDebtBalanceInDebtToken), 1, address(this));
             } else {
                 lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 1, address(this));
             }
+            */
+            //uint256 repaidAmount = 0;
+            try
+                    lendingPool.repay(_debtAsset, _debtToCover, 2, address(this))
+                returns (uint256 variableRepayment) {
+                    vars.repaidAmount = vars.repaidAmount.add(variableRepayment);
+                } catch {}
+                // If amount repaid is less than debtToCover specified, try and also pay off stable debt
+                if (vars.repaidAmount < _debtToCover) {
+                    try
+                        lendingPool.repay(
+                            _debtAsset,
+                            _debtToCover.sub(vars.repaidAmount),
+                            1,
+                            address(this)
+                        )
+                    returns (uint256 stableRepayment) {
+                        vars.repaidAmount = vars.repaidAmount.add(stableRepayment);
+                    } catch {}
+                }
 
             //next is withdrawal of collateral
-            vars.collateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(vars.priceBuffer);
+            vars.collateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceBuffer);
             require(_collateralAsset == state().bufferAsset, "collateral and buffer are not the same");
 
 
@@ -213,9 +236,9 @@ contract KAAVE {
                 actually not relevant
             */
             vars.priceACollateral = oracle.getAssetPrice(aCollateralAsset);
-            vars.aCollateralToWithdraw = (vars.maxDebtToRepay.mul(vars.priceDebt)).div(vars.priceACollateral);
+            vars.aCollateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceACollateral);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
-            vars.aCollateralBalanceETH = vars.aCollateralBalance.mul(vars.priceACollateral);
+            vars.aCollateralBalanceETH = vars.aCollateralBalance.wadMul(vars.priceACollateral);
             require(vars.aCollateralBalanceETH > vars.maxDebtToRepayETH, "not enough collateral amount for the asset you want to withdraw");
 
  
