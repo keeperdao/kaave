@@ -135,6 +135,7 @@ contract KAAVE {
             , 
             ) = lendingPool.getUserAccountData(address(this));
 
+        require(vars.totalDebtETH != 0, "there is no debt");
         //return the lending pool address provider
         ILendingPoolAddressesProvider poolAddressProvider = ILendingPoolAddressesProvider(lendingPool.getAddressesProvider());
 
@@ -151,8 +152,8 @@ contract KAAVE {
         //logic explained in GenericLogic.sol Aave library, function calculateHealthFactorFromBalances
         //logic to check
         vars.result = vars.totalCollateralETH.sub(vars.bufferAmountEth);
-        vars.healthFactor = ((vars.result).percentMul(vars.liquidationThreshold))
-            .wadDiv(vars.totalDebtETH);
+        vars.healthFactor = ((vars.result).wadDiv(vars.totalDebtETH))
+            .percentMul(vars.liquidationThreshold);
         
         if(vars.healthFactor > HEALTH_FACTOR_LIQUIDATION_THRESHOLD) {}
         else {
@@ -235,7 +236,7 @@ contract KAAVE {
                 anyway so using oracle and conversions for aTokens is
                 actually not relevant
             */
-            vars.priceACollateral = oracle.getAssetPrice(aCollateralAsset);
+            vars.priceACollateral = oracle.getAssetPrice(_collateralAsset);
             vars.aCollateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceACollateral);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
             vars.aCollateralBalanceETH = vars.aCollateralBalance.wadMul(vars.priceACollateral);
