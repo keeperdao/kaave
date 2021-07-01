@@ -7,6 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-gas-reporter";
 import "hardhat-deploy";
+require('dotenv').config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -24,8 +25,15 @@ task("accounts", "Prints the list of accounts", async (args, hre) => {
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
+ let account, referal, bot, kovan, mainnet, ropsten, goerli;
 
-const config: HardhatUserConfig = {
+kovan = process.env['kovan']
+mainnet = process.env['mainnet']
+referal = process.env['REF']
+
+
+module.exports = {
+
   solidity: {
     version: "0.7.4",
     settings: {
@@ -36,23 +44,32 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
+
+    localhost: {
+      url: 'http://127.0.0.1:8545',
+      // accounts: [
+      //      account,
+      //      referal
+      //  ],
+      gas: 12000000,
+      blockGasLimit: 12000000
+    },
+
     hardhat: {
       accounts: {
         mnemonic: 'test test test test test test test test test test test junk',
         accountsBalance: '10000000000000000000000000000000',
       },
       forking: {
-        url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-        blockNumber: 12232000,
+        url: mainnet,
+        blockNumber: 12522000,
       },
     },
     kovan: {
-      url: `https://eth-kovan.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.KOVAN_KEY as string],
-    }, 
-    ethereum: {
-      url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.MAINNET_KEY as string],
+      url: kovan,
+      accounts: [
+        referal
+      ],
     }
   },
   namedAccounts: {
@@ -74,5 +91,3 @@ const config: HardhatUserConfig = {
     coinmarketcap: process.env.CMC_API_KEY,
   }
 };
-
-export default config;
