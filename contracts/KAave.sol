@@ -11,7 +11,6 @@ import {IProtocolDataProvider} from '../interfaces/IProtocolDataProvider.sol';
 import {SafeMath} from "../libraries/SafeMath.sol";
 import {WadRayMath} from "../libraries/WadRayMath.sol";
 import {PercentageMath} from "../libraries/PercentageMath.sol";
-//import {GenericLogic} from '../libraries/GenericLogic.sol'
 
 contract KAAVE {
 
@@ -20,7 +19,6 @@ contract KAAVE {
     using PercentageMath for uint256;
 
     ILendingPool constant lendingPool = ILendingPool(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-    IERC20 constant wethProxy = IERC20(0x541dCd3F00Bcd1A683cc73E1b2A8693b602201f4);
     
     uint256 public constant HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1 ether;
     bytes32 constant KAAVE_STORAGE_POSITION = keccak256("keeperdao.hiding-vault.aave.storage");
@@ -141,12 +139,11 @@ contract KAAVE {
             ) = lendingPool.getUserAccountData(address(this));
 
         require(vars.totalDebtETH != 0, "there is no debt");
-        //return the lending pool address provider
         ILendingPoolAddressesProvider poolAddressProvider = ILendingPoolAddressesProvider(lendingPool.getAddressesProvider());
 
         //proxy price provider contract
         IPriceOracleGetter oracle = IPriceOracleGetter(poolAddressProvider.getPriceOracle());
-        //price returned in ETH
+        //price is returned in ETH
         vars.priceBuffer = oracle.getAssetPrice(_collateralAsset);
         vars.priceDebt = oracle.getAssetPrice(_debtAsset);
         require(vars.priceBuffer != 0 && vars.priceDebt != 0, "oracle rates yield 0");
@@ -156,7 +153,6 @@ contract KAAVE {
         require(vars.debtToCoverEth < vars.totalDebtETH, "you are trying to repay too much debt");
 
         //logic explained in GenericLogic.sol Aave library, function calculateHealthFactorFromBalances
-        //logic to check
         vars.result = vars.totalCollateralETH.sub(vars.bufferAmountEth);
         vars.healthFactor = ((vars.result).wadDiv(vars.totalDebtETH))
             .percentMul(vars.liquidationThreshold);
@@ -191,31 +187,15 @@ contract KAAVE {
                 vars.maxDebtToRepay = vars.maxDebtToRepayETH.wadDiv(vars.priceDebt);
             }
 
-
-
             IERC20(_debtAsset).transferFrom(msg.sender, address(this), _debtToCover);
             IERC20(_debtAsset).approve(address(lendingPool), _debtToCover);
 
-            /*
-            if(vars.variableDebtBalance.wadMul(priceVariableDebt) > vars.maxDebtToRepayETH) {
-                lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 2, address(this));
-            } else if (vars.variableDebtBalance > 0) {
-                //we convert the variable debt balance into an amount denominated in the debt token we are trying to repay
-                //we repay all the variable debt balance first
-                uint256 variableDebtBalanceInDebtToken = (vars.variableDebtBalance.wadMul(priceVariableDebt)).wadDiv(vars.priceDebt);
-                lendingPool.repay(_debtAsset, variableDebtBalanceInDebtToken, 2, address(this));
-                lendingPool.repay(_debtAsset, vars.maxDebtToRepay.sub(variableDebtBalanceInDebtToken), 1, address(this));
-            } else {
-                lendingPool.repay(_debtAsset, vars.maxDebtToRepay, 1, address(this));
-            }
-            */
-            //uint256 repaidAmount = 0;
             try
                     lendingPool.repay(_debtAsset, _debtToCover, 2, address(this))
                 returns (uint256 variableRepayment) {
                     vars.repaidAmount = vars.repaidAmount.add(variableRepayment);
                 } catch {}
-                // If amount repaid is less than debtToCover specified, try and also pay off stable debt
+                // If amount repaid is less than _debtToCover specified, try and also pay off stable debt
                 if (vars.repaidAmount < _debtToCover) {
                     try
                         lendingPool.repay(
@@ -233,9 +213,7 @@ contract KAAVE {
             //next is withdrawal of collateral
             vars.collateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceBuffer);
             
-
             require(_collateralAsset == state().bufferAsset, "collateral and buffer are not the same");
-
 
             //we need the price of the collateral aToken
             (address aCollateralAsset, , ) 
@@ -251,12 +229,10 @@ contract KAAVE {
                 anyway so using oracle and conversions for aTokens is
                 actually not relevant
             */
-            console.log("address aToken is %s", aCollateralAsset);
+
             vars.priceACollateral = oracle.getAssetPrice(vars.collateralAsset);
             vars.aCollateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceACollateral);
-            console.log("aCollateral to withdraw is %s", vars.aCollateralToWithdraw);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
-            console.log("aCollateral balance of vault is %s", vars.aCollateralBalance);
 
             require(vars.aCollateralBalance >= vars.aCollateralToWithdraw, "not enough collateral asset balance to transfer");
             vars.aCollateralBalanceETH = vars.aCollateralBalance.wadMul(vars.priceACollateral);
