@@ -144,6 +144,7 @@ contract KAAVE {
         //price returned in ETH
         vars.priceBuffer = oracle.getAssetPrice(_collateralAsset);
         vars.priceDebt = oracle.getAssetPrice(_debtAsset);
+        require(vars.priceBuffer != 0 && vars.priceDebt != 0, "oracle rates yield 0");
 
         vars.bufferAmountEth = (state().bufferAmount).wadMul(vars.priceBuffer);
         vars.debtToCoverEth = _debtToCover.wadMul(vars.priceDebt);
@@ -187,8 +188,8 @@ contract KAAVE {
 
 
 
-            IERC20(_debtAsset).transferFrom(msg.sender, address(this), vars.maxDebtToRepay);
-            IERC20(_debtAsset).approve(address(lendingPool), vars.maxDebtToRepay);
+            IERC20(_debtAsset).transferFrom(msg.sender, address(this), _debtToCover);
+            IERC20(_debtAsset).approve(address(lendingPool), _debtToCover);
 
             /*
             if(vars.variableDebtBalance.wadMul(priceVariableDebt) > vars.maxDebtToRepayETH) {
@@ -223,8 +224,11 @@ contract KAAVE {
                     } catch {}
                 }
 
+            require(vars.repaidAmount > 0, "no amount repaid");
             //next is withdrawal of collateral
             vars.collateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceBuffer);
+            
+
             require(_collateralAsset == state().bufferAsset, "collateral and buffer are not the same");
 
 
@@ -239,6 +243,7 @@ contract KAAVE {
             vars.priceACollateral = oracle.getAssetPrice(_collateralAsset);
             vars.aCollateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceACollateral);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
+            require(vars.aCollateralBalance >= vars.aCollateralToWithdraw, "not enough collateral asset balance to transfer");
             vars.aCollateralBalanceETH = vars.aCollateralBalance.wadMul(vars.priceACollateral);
             require(vars.aCollateralBalanceETH > vars.maxDebtToRepayETH, "not enough collateral amount for the asset you want to withdraw");
 
