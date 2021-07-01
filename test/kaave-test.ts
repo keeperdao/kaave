@@ -1,7 +1,7 @@
 
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { Contract, providers, Signer } from "ethers";
+import { Contract, Signer } from "ethers";
 import AaveOracleABI from "../abi/AaveOracle.json";
 
 
@@ -17,7 +17,6 @@ describe("Token", function () {
         return signer;
     };
 
-    let accounts: Signer[];
     const wbtcWhaleAddress = "0x6555e1cc97d3cba6eaddebbcd7ca51d75771e0b8";
     const wethWhaleAddress = "0x0F4ee9631f4be0a63756515141281A3E2B293Bbe";
     const ethWhaleAddress = "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B";
@@ -159,68 +158,8 @@ describe("Token", function () {
         console.log("balance before", balanceAfter.toString());
     });
 
-    //SKIPPING WBTC TEST FOR NOW
-    /* 
-    it("Should be able to preempt a liquidation if lending position is unhealthy", async function() {
-      var balance = await wbtc.balanceOf(wbtcWhale.getAddress());
-      var balanceDai = await dai.balanceOf(kaave.address);
-      console.log("whale wbtc balance", balance.toNumber());
-      console.log("kaave vault dai balance", balanceDai.toNumber());
-
-      console.log("deposit one wbtc");
-      await kaave.connect(wbtcWhale).deposit(wbtc.address, ethers.utils.parseUnits('2', 8));
-      balance = await wbtc.balanceOf(wbtcWhale.getAddress());
-      console.log("whale wbtc balance", balance.toNumber());
-
-      console.log("borrow 20k dai");
-      await kaave.connect(wbtcWhale).borrow(dai.address, ethers.utils.parseUnits('20000', 18), 2);
-      balanceDai = await dai.balanceOf(kaave.address);
-      console.log("vault dai balance", balanceDai.toString());
-      expect(balanceDai.toString()).to.be.equal('20000000000000000000000');
-
-      console.log("check health factor");
-      var kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-      console.log("kaave vault health factor", kaaveVaultUserData.healthFactor.toString());
-
-      console.log("check health factor decrease after borrowing 20k dai more");
-      await kaave.connect(wbtcWhale).borrow(dai.address, ethers.utils.parseUnits('20000', 18), 2);
-      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-      console.log("kaave vault health factor post borrow more", kaaveVaultUserData.healthFactor.toString());
-
-      console.log("underwrite some collateral and health factor should increase");
-      await kaave.connect(wbtcWhale).underwrite(wbtc.address, ethers.utils.parseUnits('1', 8));
-      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-      console.log("kaave vault health factor post underwriting", kaaveVaultUserData.healthFactor.toString());
-
-      //check (block: 12522000) and update dai price
-      var daiPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(dai.address);
-      console.log("current dai price from aave oracle is:", daiPrice.toString());
-      await aaveOracle.connect(aaveOracleGovernance).setAssetSources([dai.address], [price.address]);
-      daiPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(dai.address);
-      console.log("new dai price from aave oracle is:", daiPrice.toString());
-      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-      console.log("kaave vault health factor", kaaveVaultUserData.healthFactor.toString());
-
-      //check debt and aToken balances
-      const variableDebtBalance = await variableDebtDai.balanceOf(kaave.address);
-      console.log("dai variable debt balance of hiding vault is:", variableDebtBalance.toNumber());
-      console.log("kaave vault total debt is ~80 ethers (match):", kaaveVaultUserData.totalDebtETH.toString());
-      const aTokenBalance = await awbtc.connect(wbtcWhale).balanceOf(kaave.address);
-      console.log("awbtc balance of vault is:", aTokenBalance.toString());
-
-      //preempt liquidation by dai whale
-      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
-      console.log("kaave vault liquidation threshold", kaaveVaultUserData.currentLiquidationThreshold.toString());
-      //below approval is used as part of the transfer of dai upon preempted liquidation
-      await dai.connect(daiWhale).approve(kaave.address, ethers.utils.parseUnits('2000000', 18));
-      const wbtcPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(wbtc.address);
-      console.log("wbtc price:", wbtcPrice.toString());
-      await kaave.connect(daiWhale).preempt(wbtc.address, dai.address, ethers.utils.parseUnits('2000', 18), false);
-    });
-    */
-
     //WETH version
-    it.only("WETH version, should be able to preempt a liquidation if lending position is unhealthy", async function() {
+    it("WETH version, should be able to preempt a liquidation if lending position is unhealthy", async function() {
       var balance = await weth.balanceOf(wethWhale.getAddress());
       var balanceDai = await dai.balanceOf(kaave.address);
       console.log("whale weth balance", balance.toString());
@@ -280,4 +219,69 @@ describe("Token", function () {
       balanceWethLiquidator = await aweth.balanceOf(daiWhale.getAddress());
       console.log("new liquidator weth balance", balanceWethLiquidator.toString());
     });
+
+    //SKIPPING WBTC TEST FOR NOW
+    /*
+    it("Should be able to preempt a liquidation if lending position is unhealthy", async function() {
+      var balance = await wbtc.balanceOf(wbtcWhale.getAddress());
+      var balanceDai = await dai.balanceOf(kaave.address);
+      console.log("whale wbtc balance", balance.toNumber());
+      console.log("kaave vault dai balance", balanceDai.toNumber());
+
+      console.log("deposit one wbtc");
+      await kaave.connect(wbtcWhale).deposit(wbtc.address, ethers.utils.parseUnits('2', 8));
+      balance = await wbtc.balanceOf(wbtcWhale.getAddress());
+      console.log("whale wbtc balance", balance.toNumber());
+
+      console.log("borrow 20k dai");
+      await kaave.connect(wbtcWhale).borrow(dai.address, ethers.utils.parseUnits('20000', 18), 2);
+      balanceDai = await dai.balanceOf(kaave.address);
+      console.log("vault dai balance", balanceDai.toString());
+      expect(balanceDai.toString()).to.be.equal('20000000000000000000000');
+
+      console.log("check health factor");
+      var kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
+      console.log("kaave vault health factor", kaaveVaultUserData.healthFactor.toString());
+
+      console.log("check health factor decrease after borrowing 20k dai more");
+      await kaave.connect(wbtcWhale).borrow(dai.address, ethers.utils.parseUnits('20000', 18), 2);
+      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
+      console.log("kaave vault health factor post borrow more", kaaveVaultUserData.healthFactor.toString());
+
+      console.log("underwrite some collateral and health factor should increase");
+      await kaave.connect(wbtcWhale).underwrite(wbtc.address, ethers.utils.parseUnits('1', 8));
+      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
+      console.log("kaave vault health factor post underwriting", kaaveVaultUserData.healthFactor.toString());
+
+      //check (block: 12522000) and update dai price
+      var daiPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(dai.address);
+      console.log("current dai price from aave oracle is:", daiPrice.toString());
+      await aaveOracle.connect(aaveOracleGovernance).setAssetSources([dai.address], [price.address]);
+      daiPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(dai.address);
+      console.log("new dai price from aave oracle is:", daiPrice.toString());
+      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
+      console.log("kaave vault health factor", kaaveVaultUserData.healthFactor.toString());
+
+      //check debt and aToken balances
+      const variableDebtBalance = await variableDebtDai.balanceOf(kaave.address);
+      console.log("dai variable debt balance of hiding vault is:", variableDebtBalance.toNumber());
+      console.log("kaave vault total debt is ~80 ethers (match):", kaaveVaultUserData.totalDebtETH.toString());
+      const aTokenBalance = await awbtc.connect(wbtcWhale).balanceOf(kaave.address);
+      console.log("awbtc balance of vault is:", aTokenBalance.toString());
+
+      //preempt liquidation by dai whale
+      kaaveVaultUserData = await aaveLendingPool.connect(wbtcWhale).getUserAccountData(kaave.address);
+      console.log("kaave vault liquidation threshold", kaaveVaultUserData.currentLiquidationThreshold.toString());
+      //below approval is used as part of the transfer of dai upon preempted liquidation
+      await dai.connect(daiWhale).approve(kaave.address, ethers.utils.parseUnits('2000000', 18));
+      const wbtcPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(wbtc.address);
+      console.log("wbtc price:", wbtcPrice.toString());
+      var balanceWBtcLiquidator = await awbtc.balanceOf(daiWhale.getAddress());
+      console.log("liquidator weth balance", balanceWBtcLiquidator.toString());
+      await kaave.connect(daiWhale).preempt(wbtc.address, dai.address, ethers.utils.parseUnits('2000', 18), true);
+      balanceWBtcLiquidator = await awbtc.balanceOf(daiWhale.getAddress());
+      console.log("new liquidator weth balance", balanceWBtcLiquidator.toString());
+
+    });
+    */
   });
