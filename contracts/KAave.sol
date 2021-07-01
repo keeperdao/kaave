@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.7.4;
+pragma experimental ABIEncoderV2;
 
 import "../interfaces/IERC20.sol";
 import "hardhat/console.sol";
@@ -19,7 +20,8 @@ contract KAAVE {
     using PercentageMath for uint256;
 
     ILendingPool constant lendingPool = ILendingPool(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-
+    IERC20 constant wethProxy = IERC20(0x541dCd3F00Bcd1A683cc73E1b2A8693b602201f4);
+    
     uint256 public constant HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 1 ether;
     bytes32 constant KAAVE_STORAGE_POSITION = keccak256("keeperdao.hiding-vault.aave.storage");
     uint256 internal constant LIQUIDATION_CLOSE_FACTOR_PERCENT = 5000;
@@ -47,6 +49,8 @@ contract KAAVE {
         uint256 aCollateralToWithdraw;
         uint256 repaidAmount;
         uint256 result;
+        address aTokenAddress;
+        address collateralAsset;
     }
 
 
@@ -126,8 +130,9 @@ contract KAAVE {
         4. checking in the end if the position is still underwater??
 
         */
-
+        
         LiquidationLocalVars memory vars;
+        vars.collateralAsset = _collateralAsset;
 
         (vars.totalCollateralETH, 
             vars.totalDebtETH, , 
@@ -234,24 +239,34 @@ contract KAAVE {
 
             //we need the price of the collateral aToken
             (address aCollateralAsset, , ) 
-            = dataProvider.getReserveTokensAddresses(_collateralAsset);
+            = dataProvider.getReserveTokensAddresses(vars.collateralAsset);
+
+            //other method to retrieve aToken
+            DataTypes.ReserveData memory collateralData =
+                    lendingPool.getReserveData(vars.collateralAsset);
+            vars.aTokenAddress = collateralData.aTokenAddress;
+            console.log("address aToken is %s", vars.aTokenAddress);
             /*
                 aToken seems to be pegged to the underlying token 1:1 
                 anyway so using oracle and conversions for aTokens is
                 actually not relevant
             */
-            vars.priceACollateral = oracle.getAssetPrice(_collateralAsset);
+            console.log("address aToken is %s", aCollateralAsset);
+            vars.priceACollateral = oracle.getAssetPrice(vars.collateralAsset);
             vars.aCollateralToWithdraw = (vars.repaidAmount.wadMul(vars.priceDebt)).wadDiv(vars.priceACollateral);
+            console.log("aCollateral to withdraw is %s", vars.aCollateralToWithdraw);
             vars.aCollateralBalance = IERC20(aCollateralAsset).balanceOf(address(this));
+            console.log("aCollateral balance of vault is %s", vars.aCollateralBalance);
+
             require(vars.aCollateralBalance >= vars.aCollateralToWithdraw, "not enough collateral asset balance to transfer");
             vars.aCollateralBalanceETH = vars.aCollateralBalance.wadMul(vars.priceACollateral);
             require(vars.aCollateralBalanceETH > vars.maxDebtToRepayETH, "not enough collateral amount for the asset you want to withdraw");
 
- 
+
             if(_receiveAToken) {  
                 IERC20(aCollateralAsset).transfer(msg.sender, vars.aCollateralToWithdraw);
             } else {
-                lendingPool.withdraw(_collateralAsset, vars.collateralToWithdraw, msg.sender);
+                lendingPool.withdraw(vars.collateralAsset, vars.collateralToWithdraw, msg.sender);
             }
         }
     } 

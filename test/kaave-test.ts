@@ -159,6 +159,8 @@ describe("Token", function () {
         console.log("balance before", balanceAfter.toString());
     });
 
+    //SKIPPING WBTC TEST FOR NOW
+    /* 
     it("Should be able to preempt a liquidation if lending position is unhealthy", async function() {
       var balance = await wbtc.balanceOf(wbtcWhale.getAddress());
       var balanceDai = await dai.balanceOf(kaave.address);
@@ -215,7 +217,7 @@ describe("Token", function () {
       console.log("wbtc price:", wbtcPrice.toString());
       await kaave.connect(daiWhale).preempt(wbtc.address, dai.address, ethers.utils.parseUnits('2000', 18), false);
     });
-
+    */
 
     //WETH version
     it.only("WETH version, should be able to preempt a liquidation if lending position is unhealthy", async function() {
@@ -265,13 +267,17 @@ describe("Token", function () {
       const aTokenBalance = await aweth.connect(wethWhale).balanceOf(kaave.address);
       console.log("aweth balance of vault is:", aTokenBalance.toString());
 
-      //preempt liquidation by dai whale
+      //preempt liquidation by dai whale and check weth balances
       kaaveVaultUserData = await aaveLendingPool.connect(wethWhale).getUserAccountData(kaave.address);
       console.log("kaave vault liquidation threshold", kaaveVaultUserData.currentLiquidationThreshold.toString());
       //below approval is used as part of the transfer of dai upon preempted liquidation
       await dai.connect(daiWhale).approve(kaave.address, ethers.utils.parseUnits('2000000', 18));
       const wethPrice = await aaveOracle.connect(aaveOracleGovernance).getAssetPrice(weth.address);
       console.log("weth price:", wethPrice.toString());
-      await kaave.connect(daiWhale).preempt(weth.address, dai.address, ethers.utils.parseUnits('2000', 18), true);
+      var balanceWethLiquidator = await aweth.balanceOf(daiWhale.getAddress());
+      console.log("liquidator weth balance", balanceWethLiquidator.toString());
+      await kaave.connect(daiWhale).preempt(weth.address, dai.address, ethers.utils.parseUnits('1000', 18), true);
+      balanceWethLiquidator = await aweth.balanceOf(daiWhale.getAddress());
+      console.log("new liquidator weth balance", balanceWethLiquidator.toString());
     });
   });
